@@ -1,4 +1,7 @@
-type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+type FetchLike = (
+  input: RequestInfo | URL,
+  init?: RequestInit,
+) => Promise<Response>;
 
 type JsonCacheEntry = {
   etag?: string;
@@ -66,23 +69,34 @@ export class ScpDataApiClient {
 
   async getIndex(collection: string): Promise<Record<string, unknown>> {
     return this.getJsonByUrl(
-      new URL(`${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/index.json`),
+      new URL(
+        `${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/index.json`,
+      ),
     );
   }
 
-  async getContentIndexFor(collection: string): Promise<Record<string, string>> {
+  async getContentIndexFor(
+    collection: string,
+  ): Promise<Record<string, string>> {
     return this.getJsonByUrl(
-      new URL(`${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/content_index.json`),
+      new URL(
+        `${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/content_index.json`,
+      ),
     );
   }
 
-  async getContentFileFor(collection: string, fileName: string): Promise<Record<string, unknown>> {
+  async getContentFileFor(
+    collection: string,
+    fileName: string,
+  ): Promise<Record<string, unknown>> {
     if (!fileName.endsWith('.json')) {
       throw new Error('content file name must end with .json');
     }
 
     return this.getJsonByUrl(
-      new URL(`${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/${fileName}`),
+      new URL(
+        `${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/${fileName}`,
+      ),
     );
   }
 
@@ -107,7 +121,10 @@ export class ScpDataApiClient {
       headers['If-Modified-Since'] = cached.lastModified;
     }
 
-    const res = await this.fetchImpl(url, Object.keys(headers).length > 0 ? { headers } : undefined);
+    const res = await this.fetchImpl(
+      url,
+      Object.keys(headers).length > 0 ? { headers } : undefined,
+    );
     if (res.status === 304) {
       if (!cached) {
         throw new Error(`Got 304 but no cache entry exists for: ${url}`);
@@ -116,7 +133,9 @@ export class ScpDataApiClient {
     }
     if (!res.ok) {
       const body = await res.text().catch(() => '');
-      throw new Error(`SCP Data API request failed (${res.status}): ${body.slice(0, 200)}`);
+      throw new Error(
+        `SCP Data API request failed (${res.status}): ${body.slice(0, 200)}`,
+      );
     }
 
     const text = await res.text();

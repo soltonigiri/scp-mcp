@@ -36,7 +36,9 @@ export class AuditLogger {
 
 export function truncateForLog(value: unknown, maxStringLength = 200): unknown {
   if (typeof value === 'string') {
-    return value.length > maxStringLength ? `${value.slice(0, maxStringLength)}…` : value;
+    return value.length > maxStringLength
+      ? `${value.slice(0, maxStringLength)}…`
+      : value;
   }
   if (Array.isArray(value)) {
     return value.slice(0, 50).map((v) => truncateForLog(v, maxStringLength));
@@ -51,4 +53,3 @@ export function truncateForLog(value: unknown, maxStringLength = 200): unknown {
   }
   return value;
 }
-

@@ -13,7 +13,11 @@ export class FixedWindowRateLimiter {
     this.config = config;
   }
 
-  consume(key: string): { allowed: boolean; remaining: number; resetAtMs: number } {
+  consume(key: string): {
+    allowed: boolean;
+    remaining: number;
+    resetAtMs: number;
+  } {
     const now = Date.now();
     const existing = this.counters.get(key);
 
@@ -43,4 +47,3 @@ export class FixedWindowRateLimiter {
     };
   }
 }
-

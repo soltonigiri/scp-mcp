@@ -55,7 +55,8 @@ function createItemsRepo() {
       series: 'series-1',
       created_at: '2008-07-25T00:00:00',
       creator: 'Author A',
-      raw_content: '<html><body><div id="page-content"><p>Test content 172.</p></div></body></html>',
+      raw_content:
+        '<html><body><div id="page-content"><p>Test content 172.</p></div></body></html>',
       raw_source: 'Test content 172.',
       images: [],
       references: [],
@@ -115,14 +116,23 @@ describe('SCP get tools', () => {
   it('scp_get_content returns requested formats', async () => {
     const repo = createItemsRepo();
 
-    const text = await scpGetContentToolCall(repo, { link: 'scp-173', format: 'text' });
+    const text = await scpGetContentToolCall(repo, {
+      link: 'scp-173',
+      format: 'text',
+    });
     expect(text.content).toMatch(/statue/i);
     expect(text.content_is_untrusted).toBe(true);
 
-    const wt = await scpGetContentToolCall(repo, { link: 'scp-173', format: 'wikitext' });
+    const wt = await scpGetContentToolCall(repo, {
+      link: 'scp-173',
+      format: 'wikitext',
+    });
     expect(wt.content).toMatch(/statue/i);
 
-    const md = await scpGetContentToolCall(repo, { link: 'scp-173', format: 'markdown' });
+    const md = await scpGetContentToolCall(repo, {
+      link: 'scp-173',
+      format: 'markdown',
+    });
     expect(md.content).toMatch(/statue/i);
   });
 
@@ -142,4 +152,3 @@ describe('SCP get tools', () => {
     expect(res.attribution_text).toMatch(/CC BY-SA 3.0/);
   });
 });
-

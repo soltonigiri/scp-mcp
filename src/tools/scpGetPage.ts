@@ -7,7 +7,10 @@ export type ScpGetPageToolInput = {
   page_id?: string | number;
 };
 
-export async function scpGetPageToolCall(repo: ScpRepository, input: ScpGetPageToolInput) {
+export async function scpGetPageToolCall(
+  repo: ScpRepository,
+  input: ScpGetPageToolInput,
+) {
   const page = await repo.getPage({
     link: input.link,
     scp_number: input.scp_number,
@@ -18,7 +21,10 @@ export async function scpGetPageToolCall(repo: ScpRepository, input: ScpGetPageT
   return {
     page,
     license: SCP_CONTENT_LICENSE,
-    attribution: buildPageAttribution({ url: page.url, title: page.title, authors: a.authors }),
+    attribution: buildPageAttribution({
+      url: page.url,
+      title: page.title,
+      authors: a.authors,
+    }),
   };
 }
-

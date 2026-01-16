@@ -122,9 +122,7 @@ function clampLimit(limit: number | undefined): number {
 
 function normalizeTags(tags: string[] | undefined): string[] {
   if (!tags) return [];
-  return tags
-    .map((t) => t.trim().toLowerCase())
-    .filter((t) => t.length > 0);
+  return tags.map((t) => t.trim().toLowerCase()).filter((t) => t.length > 0);
 }
 
 function matchesFilters(
@@ -147,12 +145,16 @@ function matchesFilters(
     }
   }
 
-  if (filters.ratingMin !== undefined && doc.rating < filters.ratingMin) return false;
-  if (filters.ratingMax !== undefined && doc.rating > filters.ratingMax) return false;
+  if (filters.ratingMin !== undefined && doc.rating < filters.ratingMin)
+    return false;
+  if (filters.ratingMax !== undefined && doc.rating > filters.ratingMax)
+    return false;
 
   const createdAt = parseDateOrUndefined(doc.created_at);
-  if (filters.createdAtFrom && createdAt && createdAt < filters.createdAtFrom) return false;
-  if (filters.createdAtTo && createdAt && createdAt > filters.createdAtTo) return false;
+  if (filters.createdAtFrom && createdAt && createdAt < filters.createdAtFrom)
+    return false;
+  if (filters.createdAtTo && createdAt && createdAt > filters.createdAtTo)
+    return false;
 
   return true;
 }
@@ -201,7 +203,10 @@ function makeSnippet(text: string, query: string, fallbackIdx: number): string {
   }
 
   if (firstIdx === -1) {
-    const start = Math.min(fallbackIdx * 40, Math.max(0, normalized.length - maxLen));
+    const start = Math.min(
+      fallbackIdx * 40,
+      Math.max(0, normalized.length - maxLen),
+    );
     const s = normalized.slice(start, start + maxLen);
     const prefix = start > 0 ? '…' : '';
     const suffix = start + maxLen < normalized.length ? '…' : '';

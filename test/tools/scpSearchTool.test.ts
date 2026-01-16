@@ -8,7 +8,9 @@ describe('scp_search tool', () => {
     const repo = new ScpRepository(
       {
         getIndex: async () => ({}),
-        getContentIndexFor: async () => ({ 'series-1': 'content_series-1.json' }),
+        getContentIndexFor: async () => ({
+          'series-1': 'content_series-1.json',
+        }),
         getContentFileFor: async () => ({
           'SCP-173': {
             link: 'scp-173',
@@ -45,8 +47,8 @@ describe('scp_search tool', () => {
       { collections: ['items'] },
     );
 
-    await expect(scpSearchToolCall(repo, { site: 'ja', query: 'x' })).rejects.toThrow(
-      /unsupported site/i,
-    );
+    await expect(
+      scpSearchToolCall(repo, { site: 'ja', query: 'x' }),
+    ).rejects.toThrow(/unsupported site/i);
   });
 });

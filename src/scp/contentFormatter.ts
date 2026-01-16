@@ -24,7 +24,10 @@ export function formatScpContent(params: {
     if (!params.raw_source) {
       throw new Error('wikitext is not available for this page');
     }
-    return { content: params.raw_source.trim(), images: normalizeImages(params.images) };
+    return {
+      content: params.raw_source.trim(),
+      images: normalizeImages(params.images),
+    };
   }
 
   if (!params.raw_content) {
@@ -39,7 +42,8 @@ export function formatScpContent(params: {
 
   root.find('script, style').remove();
   if (!includeTables) root.find('table').remove();
-  if (!includeFootnotes) root.find('.footnote, .footnoteref, .footnotes').remove();
+  if (!includeFootnotes)
+    root.find('.footnote, .footnoteref, .footnotes').remove();
 
   const extractedImages: Array<{ url: string; alt?: string }> = [];
   root.find('img').each((_, el) => {
@@ -53,7 +57,10 @@ export function formatScpContent(params: {
     const html = root.html() ?? '';
     return {
       content: html.trim(),
-      images: extractedImages.length > 0 ? extractedImages : normalizeImages(params.images),
+      images:
+        extractedImages.length > 0
+          ? extractedImages
+          : normalizeImages(params.images),
     };
   }
 
@@ -61,7 +68,10 @@ export function formatScpContent(params: {
     const text = root.text().replace(/\s+/g, ' ').trim();
     return {
       content: text,
-      images: extractedImages.length > 0 ? extractedImages : normalizeImages(params.images),
+      images:
+        extractedImages.length > 0
+          ? extractedImages
+          : normalizeImages(params.images),
     };
   }
 
@@ -76,12 +86,16 @@ export function formatScpContent(params: {
   const md = turndown.turndown(html).trim();
   return {
     content: md,
-    images: extractedImages.length > 0 ? extractedImages : normalizeImages(params.images),
+    images:
+      extractedImages.length > 0
+        ? extractedImages
+        : normalizeImages(params.images),
   };
 }
 
 function normalizeImages(images: string[] | undefined): Array<{ url: string }> {
   if (!images) return [];
-  return images.filter((u) => typeof u === 'string' && u.length > 0).map((url) => ({ url }));
+  return images
+    .filter((u) => typeof u === 'string' && u.length > 0)
+    .map((url) => ({ url }));
 }
-

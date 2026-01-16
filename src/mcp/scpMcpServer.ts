@@ -1,9 +1,15 @@
-import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js';
+import {
+  McpServer,
+  ResourceTemplate,
+} from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
 import * as z from 'zod/v4';
 
 import type { ScpRepository } from '../scp/repository.js';
-import { SCP_CONTENT_LICENSE, buildDatasetAttribution } from '../scp/licensing.js';
+import {
+  SCP_CONTENT_LICENSE,
+  buildDatasetAttribution,
+} from '../scp/licensing.js';
 import { AuditLogger, truncateForLog } from '../security/auditLogger.js';
 import { FixedWindowRateLimiter } from '../security/rateLimiter.js';
 import { scpGetAttributionToolCall } from '../tools/scpGetAttribution.js';
@@ -13,7 +19,9 @@ import { scpGetRelatedToolCall } from '../tools/scpGetRelated.js';
 import { scpSearchToolCall } from '../tools/scpSearch.js';
 
 export function createScpMcpServer(repo: ScpRepository) {
-  const auditLogger = new AuditLogger({ logPath: process.env.SCP_MCP_AUDIT_LOG_PATH });
+  const auditLogger = new AuditLogger({
+    logPath: process.env.SCP_MCP_AUDIT_LOG_PATH,
+  });
   const rateLimiter = new FixedWindowRateLimiter({
     windowMs: numberFromEnv('SCP_MCP_RATE_LIMIT_WINDOW_MS', 60_000),
     maxRequests: numberFromEnv('SCP_MCP_RATE_LIMIT_MAX_REQUESTS', 60),
@@ -34,20 +42,41 @@ export function createScpMcpServer(repo: ScpRepository) {
       description: 'Search SCP Wiki pages via SCP Data API (CC BY-SA 3.0).',
       inputSchema: {
         query: z.string().optional().describe('Search query'),
-        site: z.string().optional().describe('Site/language (currently only "en")'),
+        site: z
+          .string()
+          .optional()
+          .describe('Site/language (currently only "en")'),
         tags: z.array(z.string()).optional().describe('Filter: required tags'),
         series: z.string().optional().describe('Filter: series'),
-        created_at_from: z.string().optional().describe('Filter: created_at >= this (ISO string)'),
-        created_at_to: z.string().optional().describe('Filter: created_at <= this (ISO string)'),
+        created_at_from: z
+          .string()
+          .optional()
+          .describe('Filter: created_at >= this (ISO string)'),
+        created_at_to: z
+          .string()
+          .optional()
+          .describe('Filter: created_at <= this (ISO string)'),
         rating_min: z.number().optional().describe('Filter: rating >= this'),
         rating_max: z.number().optional().describe('Filter: rating <= this'),
-        limit: z.number().int().optional().describe('Max results (default 20, max 50)'),
-        sort: z.enum(['relevance', 'rating', 'created_at']).optional().describe('Sort order'),
+        limit: z
+          .number()
+          .int()
+          .optional()
+          .describe('Max results (default 20, max 50)'),
+        sort: z
+          .enum(['relevance', 'rating', 'created_at'])
+          .optional()
+          .describe('Sort order'),
       },
     },
     async (args, extra) =>
-      wrapStructuredCall('scp_search', args, extra, auditLogger, rateLimiter, () =>
-        scpSearchToolCall(repo, args),
+      wrapStructuredCall(
+        'scp_search',
+        args,
+        extra,
+        auditLogger,
+        rateLimiter,
+        () => scpSearchToolCall(repo, args),
       ),
   );
 
@@ -58,13 +87,25 @@ export function createScpMcpServer(repo: ScpRepository) {
       description: 'Get a page by link, SCP number, or Wikidot page_id.',
       inputSchema: {
         link: z.string().optional().describe('Page slug (e.g., "scp-173")'),
-        scp_number: z.number().int().optional().describe('SCP number (e.g., 173)'),
-        page_id: z.union([z.string(), z.number()]).optional().describe('Wikidot page id'),
+        scp_number: z
+          .number()
+          .int()
+          .optional()
+          .describe('SCP number (e.g., 173)'),
+        page_id: z
+          .union([z.string(), z.number()])
+          .optional()
+          .describe('Wikidot page id'),
       },
     },
     async (args, extra) =>
-      wrapStructuredCall('scp_get_page', args, extra, auditLogger, rateLimiter, () =>
-        scpGetPageToolCall(repo, args),
+      wrapStructuredCall(
+        'scp_get_page',
+        args,
+        extra,
+        auditLogger,
+        rateLimiter,
+        () => scpGetPageToolCall(repo, args),
       ),
   );
 
@@ -75,15 +116,31 @@ export function createScpMcpServer(repo: ScpRepository) {
       description: 'Get page content in markdown/text/html/wikitext.',
       inputSchema: {
         link: z.string().optional().describe('Page slug (e.g., "scp-173")'),
-        page_id: z.union([z.string(), z.number()]).optional().describe('Wikidot page id'),
-        format: z.enum(['markdown', 'text', 'html', 'wikitext']).describe('Output format'),
-        include_tables: z.boolean().optional().describe('Whether to include tables'),
-        include_footnotes: z.boolean().optional().describe('Whether to include footnotes'),
+        page_id: z
+          .union([z.string(), z.number()])
+          .optional()
+          .describe('Wikidot page id'),
+        format: z
+          .enum(['markdown', 'text', 'html', 'wikitext'])
+          .describe('Output format'),
+        include_tables: z
+          .boolean()
+          .optional()
+          .describe('Whether to include tables'),
+        include_footnotes: z
+          .boolean()
+          .optional()
+          .describe('Whether to include footnotes'),
       },
     },
     async (args, extra) =>
-      wrapStructuredCall('scp_get_content', args, extra, auditLogger, rateLimiter, () =>
-        scpGetContentToolCall(repo, args),
+      wrapStructuredCall(
+        'scp_get_content',
+        args,
+        extra,
+        auditLogger,
+        rateLimiter,
+        () => scpGetContentToolCall(repo, args),
       ),
   );
 
@@ -97,8 +154,13 @@ export function createScpMcpServer(repo: ScpRepository) {
       },
     },
     async (args, extra) =>
-      wrapStructuredCall('scp_get_related', args, extra, auditLogger, rateLimiter, () =>
-        scpGetRelatedToolCall(repo, args),
+      wrapStructuredCall(
+        'scp_get_related',
+        args,
+        extra,
+        auditLogger,
+        rateLimiter,
+        () => scpGetRelatedToolCall(repo, args),
       ),
   );
 
@@ -112,8 +174,13 @@ export function createScpMcpServer(repo: ScpRepository) {
       },
     },
     async (args, extra) =>
-      wrapStructuredCall('scp_get_attribution', args, extra, auditLogger, rateLimiter, () =>
-        scpGetAttributionToolCall(repo, args),
+      wrapStructuredCall(
+        'scp_get_attribution',
+        args,
+        extra,
+        auditLogger,
+        rateLimiter,
+        () => scpGetAttributionToolCall(repo, args),
       ),
   );
 
@@ -121,7 +188,8 @@ export function createScpMcpServer(repo: ScpRepository) {
     'prompt_quote_with_citation',
     {
       title: 'Quote With Citation',
-      description: 'Safely quote SCP content with URL/authors/license included.',
+      description:
+        'Safely quote SCP content with URL/authors/license included.',
       argsSchema: {
         link: z.string().describe('Page slug (e.g., "scp-173")'),
         question: z.string().describe('User question'),
@@ -156,7 +224,11 @@ export function createScpMcpServer(repo: ScpRepository) {
       description: 'Search → fetch → summarize with license/attribution.',
       argsSchema: {
         query: z.string().describe('Search query'),
-        limit: z.number().int().optional().describe('Max candidates to retrieve (default 5)'),
+        limit: z
+          .number()
+          .int()
+          .optional()
+          .describe('Max candidates to retrieve (default 5)'),
       },
     },
     async ({ query, limit }) => ({
@@ -234,7 +306,10 @@ export function createScpMcpServer(repo: ScpRepository) {
     { title: 'SCP Content (Markdown)', mimeType: 'application/json' },
     async (uri, variables) => {
       const link = String(variables.link ?? '');
-      const res = await scpGetContentToolCall(repo, { link, format: 'markdown' });
+      const res = await scpGetContentToolCall(repo, {
+        link,
+        format: 'markdown',
+      });
       return {
         contents: [
           {
@@ -287,7 +362,9 @@ async function wrapStructuredCall<T extends Record<string, unknown>>(
       result_meta: summarizeResult(tool, value),
     });
     return {
-      content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
+      content: [
+        { type: 'text' as const, text: JSON.stringify(value, null, 2) },
+      ],
       structuredContent: value,
     };
   } catch (err) {
@@ -307,18 +384,26 @@ async function wrapStructuredCall<T extends Record<string, unknown>>(
   }
 }
 
-function summarizeResult(tool: string, value: Record<string, unknown>): Record<string, unknown> {
+function summarizeResult(
+  tool: string,
+  value: Record<string, unknown>,
+): Record<string, unknown> {
   if (tool === 'scp_search') {
-    const results = Array.isArray(value.results) ? value.results.length : undefined;
+    const results = Array.isArray(value.results)
+      ? value.results.length
+      : undefined;
     return { results };
   }
   if (tool === 'scp_get_related') {
-    const related = Array.isArray(value.related) ? value.related.length : undefined;
+    const related = Array.isArray(value.related)
+      ? value.related.length
+      : undefined;
     return { related };
   }
   if (tool === 'scp_get_content') {
     const format = typeof value.format === 'string' ? value.format : undefined;
-    const contentLen = typeof value.content === 'string' ? value.content.length : undefined;
+    const contentLen =
+      typeof value.content === 'string' ? value.content.length : undefined;
     return { format, content_length: contentLen };
   }
   if (tool === 'scp_get_page') {
@@ -329,7 +414,9 @@ function summarizeResult(tool: string, value: Record<string, unknown>): Record<s
     };
   }
   if (tool === 'scp_get_attribution') {
-    const authors = Array.isArray(value.authors) ? value.authors.length : undefined;
+    const authors = Array.isArray(value.authors)
+      ? value.authors.length
+      : undefined;
     return { authors };
   }
   return {};

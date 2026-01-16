@@ -5,7 +5,8 @@ import { ScpDataApiClient } from '../../src/scp/dataApiClient.js';
 describe('ScpDataApiClient', () => {
   it('rejects non-allowlisted origins (SSRF protection)', async () => {
     const client = new ScpDataApiClient({
-      fetch: async () => new Response(JSON.stringify({ ok: true }), { status: 200 }),
+      fetch: async () =>
+        new Response(JSON.stringify({ ok: true }), { status: 200 }),
     });
 
     await expect(
@@ -48,4 +49,3 @@ describe('ScpDataApiClient', () => {
     expect(h['If-Modified-Since']).toBe(lastModified);
   });
 });
-

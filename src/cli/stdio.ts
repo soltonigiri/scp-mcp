@@ -19,4 +19,3 @@ main().catch((error) => {
   console.error('scp-mcp: stdio server error:', error);
   process.exit(1);
 });
-

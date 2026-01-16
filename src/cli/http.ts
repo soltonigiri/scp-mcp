@@ -27,7 +27,8 @@ app.get('/healthz', (_req: Request, res: Response) => {
 
 app.post('/mcp', async (req: Request, res: Response) => {
   const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = typeof sessionIdHeader === 'string' ? sessionIdHeader : undefined;
+  const sessionId =
+    typeof sessionIdHeader === 'string' ? sessionIdHeader : undefined;
 
   try {
     if (sessionId && sessions.has(sessionId)) {
@@ -94,7 +95,8 @@ app.get('/mcp', async (_req: Request, res: Response) => {
 
 app.delete('/mcp', async (req: Request, res: Response) => {
   const sessionIdHeader = req.headers['mcp-session-id'];
-  const sessionId = typeof sessionIdHeader === 'string' ? sessionIdHeader : undefined;
+  const sessionId =
+    typeof sessionIdHeader === 'string' ? sessionIdHeader : undefined;
   if (!sessionId || !sessions.has(sessionId)) {
     res.status(404).json({ ok: false, error: 'Unknown session' });
     return;

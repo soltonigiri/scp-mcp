@@ -32,7 +32,11 @@ describe('ScpSearchEngine', () => {
       text: 'A strange living room organism.',
     });
 
-    const res = engine.search({ query: 'statue', limit: 10, sort: 'relevance' });
+    const res = engine.search({
+      query: 'statue',
+      limit: 10,
+      sort: 'relevance',
+    });
     expect(res.results[0]?.link).toBe('scp-173');
   });
 
@@ -66,4 +70,3 @@ describe('ScpSearchEngine', () => {
     expect(res.results.every((r) => r.series === 'series-1')).toBe(true);
   });
 });
-

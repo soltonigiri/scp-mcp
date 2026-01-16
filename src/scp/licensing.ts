@@ -20,7 +20,8 @@ export const SCP_CONTENT_LICENSE: LicenseInfo = {
   url: 'https://creativecommons.org/licenses/by-sa/3.0/',
 };
 
-export const SCP_LICENSING_GUIDE_URL = 'https://scp-wiki.wikidot.com/licensing-guide';
+export const SCP_LICENSING_GUIDE_URL =
+  'https://scp-wiki.wikidot.com/licensing-guide';
 
 export function buildDatasetAttribution(): AttributionInfo {
   return {
@@ -49,7 +50,8 @@ export function buildAttributionText(params: {
   title: string;
   authors: string[];
 }): string {
-  const authors = params.authors.length > 0 ? params.authors.join(', ') : '(unknown)';
+  const authors =
+    params.authors.length > 0 ? params.authors.join(', ') : '(unknown)';
   return [
     'Attribution (CC BY-SA 3.0):',
     `- Title: ${params.title}`,

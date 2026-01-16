@@ -71,12 +71,15 @@ function createItemsRepo() {
 
 describe('scp-mcp server', () => {
   it('supports tools/list and tools/call (in-memory transport)', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     try {
       const repo = createItemsRepo();
       const server = createScpMcpServer(repo);
 
-      const [clientTransport, serverTransport] = InMemoryTransport.createLinkedPair();
+      const [clientTransport, serverTransport] =
+        InMemoryTransport.createLinkedPair();
       const client = new Client({ name: 'test-client', version: '0.0.0' });
 
       await server.connect(serverTransport);
@@ -99,11 +102,12 @@ describe('scp-mcp server', () => {
         arguments: { link: 'scp-173' },
       });
 
-      const sc = result.structuredContent as Record<string, unknown> | undefined;
+      const sc = result.structuredContent as
+        | Record<string, unknown>
+        | undefined;
       expect(sc?.license).toBeTruthy();
     } finally {
       consoleError.mockRestore();
     }
   });
 });
-

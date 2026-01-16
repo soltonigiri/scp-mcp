@@ -7,7 +7,9 @@ describe('ScpRepository', () => {
     const repo = new ScpRepository(
       {
         getIndex: async () => ({}),
-        getContentIndexFor: async () => ({ 'series-1': 'content_series-1.json' }),
+        getContentIndexFor: async () => ({
+          'series-1': 'content_series-1.json',
+        }),
         getContentFileFor: async () => ({
           'SCP-173': {
             link: 'scp-173',

@@ -1,6 +1,9 @@
 import type { ScpRepository } from '../scp/repository.js';
 import type { ScpSearchSort } from '../scp/searchEngine.js';
-import { buildDatasetAttribution, SCP_CONTENT_LICENSE } from '../scp/licensing.js';
+import {
+  buildDatasetAttribution,
+  SCP_CONTENT_LICENSE,
+} from '../scp/licensing.js';
 
 export type ScpSearchToolInput = {
   query?: string;
@@ -15,7 +18,10 @@ export type ScpSearchToolInput = {
   sort?: ScpSearchSort;
 };
 
-export async function scpSearchToolCall(repo: ScpRepository, input: ScpSearchToolInput) {
+export async function scpSearchToolCall(
+  repo: ScpRepository,
+  input: ScpSearchToolInput,
+) {
   const site = input.site ?? 'en';
   if (site !== 'en') {
     throw new Error(`Unsupported site: ${site}`);
@@ -51,4 +57,3 @@ export async function scpSearchToolCall(repo: ScpRepository, input: ScpSearchToo
     attribution: buildDatasetAttribution(),
   };
 }
-
