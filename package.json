@@ -1,0 +1,41 @@
+{
+  "name": "scp-mcp",
+  "version": "0.1.0",
+  "description": "SCP Data API wrapper as a Model Context Protocol (MCP) server",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier -w .",
+    "format:check": "prettier -c .",
+    "mcp:stdio": "npm run build --silent && node dist/cli/stdio.js",
+    "mcp:http": "npm run build --silent && node dist/cli/http.js",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "cheerio": "^1.1.2",
+    "minisearch": "^7.1.2",
+    "turndown": "^7.2.1",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.0",
+    "@types/express": "^5.0.3",
+    "@types/turndown": "^5.0.5",
+    "@typescript-eslint/eslint-plugin": "^8.31.1",
+    "@typescript-eslint/parser": "^8.31.1",
+    "eslint": "^9.18.0",
+    "prettier": "^3.5.2",
+    "typescript": "^5.8.2",
+    "vitest": "^2.1.8"
+  }
+}

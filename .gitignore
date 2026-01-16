@@ -1,0 +1,36 @@
+# dependencies
+node_modules/
+
+# build output
+dist/
+coverage/
+
+# env / secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+
+# logs
+*.log
+*.jsonl
+.DS_Store
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# tooling
+.eslintcache
+*.tsbuildinfo
+.serena/
+
+# editors
+.idea/
+.vscode/
