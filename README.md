@@ -5,6 +5,7 @@ SCP Data API を一次ソースとして、SCP Wiki由来のページを **検�
 ## 重要（ライセンス/非公式）
 
 - 本プロジェクトは **非公式** です（SCP Foundation / Wikidot 公式ではありません）。
+- 本リポジトリのソースコードは **MIT License** です（`LICENSE`）。
 - SCP Wiki のコンテンツは原則 **CC BY-SA 3.0** です。二次利用時は帰属表示と継承（Share-Alike）が必要です。
 - 画像/メディアの取り扱いは特に注意してください（例: SCP-173 の過去の画像には追加の制約があり、商用利用は不可）。
 - ライセンス指針: https://scp-wiki.wikidot.com/licensing-guide
