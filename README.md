@@ -36,6 +36,25 @@ npm run mcp:http
 - ヘルスチェック: `GET /healthz`
 - ポート: `PORT`（デフォルト `3000`）
 
+## クイックスタート
+
+まずは clone して依存を入れます。
+
+```bash
+git clone https://github.com/soltonigiri/scp-mcp.git
+cd scp-mcp
+npm install
+```
+
+次に Codex の `config.toml` に以下を追加します（`{scp-mcp-path}` は clone したパスに置き換えてください）。
+
+```toml
+[mcp_servers.scp-mcp]
+command = "bash"
+args = ["-lc", "cd {scp-mcp-path} && npm run --silent mcp:stdio"]
+startup_timeout_ms = 20000
+```
+
 ## Tools（MVP）
 
 すべての tool 戻り値は `structuredContent` に JSON を含みます（また、可読性のため `content[type=text]` にも JSON 文字列を返します）。
