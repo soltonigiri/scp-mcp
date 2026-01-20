@@ -57,28 +57,28 @@
 - [✓] (Refactor) `summarizeResult` の if 連鎖を `tool -> summarizer` マップ化
 - [✓] (Verify) `npm test` / `npm run build` / `npm run lint` を実行してgreenを確認
   PR2: ドメイン層可読性改善
-- [ ] (Test) SearchEngine の snippet 代表ケースを追加
+- [✓] (Test) SearchEngine の snippet 代表ケースを追加
   - query無しの先頭200文字+省略
   - query一致ありの前後文脈抽出
   - query一致なしの fallbackIdx スライス
-- [ ] (Test) `scp_get_page` の参照解決のcharacterizationテストを追加
+- [✓] (Test) `scp_get_page` の参照解決のcharacterizationテストを追加
   - `scp_number` で解決できること
   - `page_id` で解決できること
-- [ ] (Refactor) `src/scp/repository.ts` の重複排除
+- [✓] (Refactor) `src/scp/repository.ts` の重複排除
   - raw entry からの基礎フィールド抽出をヘルパ化（link/title/url/page_id 等）
   - Map更新（pagesByRef/refsByLink/refsByPageId/itemRefsByScpNumber）を1か所に集約
   - `resolveRef` の link/page_id 分岐を共通化（エラーメッセージは維持）
-- [ ] (Refactor) `src/scp/dataApiClient.ts` の重複排除
+- [✓] (Refactor) `src/scp/dataApiClient.ts` の重複排除
   - API URL生成を `buildApiUrl` に集約
   - conditional headers / in-flight dedupe を小関数化
-- [ ] (Refactor) `src/scp/searchEngine.ts` の読みやすさ改善
+- [✓] (Refactor) `src/scp/searchEngine.ts` の読みやすさ改善
   - `doc` が `undefined` になり得る箇所の扱いを明示（強制キャスト/Boolean filter に依存しない）
   - `makeSnippet` を小関数に分割して分岐の意図を明確化
-- [ ] (Refactor) `src/scp/contentFormatter.ts` の読みやすさ改善
+- [✓] (Refactor) `src/scp/contentFormatter.ts` の読みやすさ改善
   - `images` 返却ロジックの重複を解消
   - 共通前処理（root決定/不要要素除去/img抽出）と形式別出力を分離
-- [ ] (Verify) `npm test` / `npm run build` / `npm run lint` を実行してgreenを確認
-      受入基準（このリファクタで壊さないこと）
+- [✓] (Verify) `npm test` / `npm run build` / `npm run lint` を実行してgreenを確認
+  受入基準（このリファクタで壊さないこと）
 - `docs/要件定義.md` のMVP toolが提供され、I/O JSONの主要フィールド（license/attribution/content_is_untrusted等）が維持されている
 - `test/mcp/mcpServer.test.ts` の `tools/list -> tools/call` が通る
 - `npm test` と `npm run build` が成功する

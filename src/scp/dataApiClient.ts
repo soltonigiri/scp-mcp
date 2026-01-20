@@ -19,6 +19,25 @@ const SCP_DATA_API_ORIGIN = 'https://scp-data.tedivm.com';
 const SCP_DATA_API_PATH_PREFIX = '/data/scp/';
 const DEFAULT_MAX_CACHE_BYTES = 256 * 1024 * 1024;
 
+function buildApiUrl(path: string): URL {
+  return new URL(`${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${path}`);
+}
+
+function buildConditionalHeaders(
+  cached: JsonCacheEntry | undefined,
+): Record<string, string> | undefined {
+  const headers: Record<string, string> = {};
+
+  if (cached?.etag) {
+    headers['If-None-Match'] = cached.etag;
+  }
+  if (cached?.lastModified) {
+    headers['If-Modified-Since'] = cached.lastModified;
+  }
+
+  return Object.keys(headers).length > 0 ? headers : undefined;
+}
+
 export class ScpDataApiClient {
   private readonly fetchImpl: FetchLike;
   private readonly maxCacheBytes: number;
@@ -41,18 +60,7 @@ export class ScpDataApiClient {
     this.assertAllowlisted(parsed);
 
     const key = parsed.toString();
-    const existingInFlight = this.inFlight.get(key);
-    if (existingInFlight) {
-      return existingInFlight as Promise<T>;
-    }
-
-    const promise = this.fetchJsonWithCache<T>(key);
-    this.inFlight.set(key, promise as Promise<unknown>);
-    try {
-      return await promise;
-    } finally {
-      this.inFlight.delete(key);
-    }
+    return this.withInFlight(key, () => this.fetchJsonWithCache<T>(key));
   }
 
   async getItemsIndex(): Promise<Record<string, unknown>> {
@@ -68,21 +76,13 @@ export class ScpDataApiClient {
   }
 
   async getIndex(collection: string): Promise<Record<string, unknown>> {
-    return this.getJsonByUrl(
-      new URL(
-        `${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/index.json`,
-      ),
-    );
+    return this.getJsonByUrl(buildApiUrl(`${collection}/index.json`));
   }
 
   async getContentIndexFor(
     collection: string,
   ): Promise<Record<string, string>> {
-    return this.getJsonByUrl(
-      new URL(
-        `${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/content_index.json`,
-      ),
-    );
+    return this.getJsonByUrl(buildApiUrl(`${collection}/content_index.json`));
   }
 
   async getContentFileFor(
@@ -93,11 +93,7 @@ export class ScpDataApiClient {
       throw new Error('content file name must end with .json');
     }
 
-    return this.getJsonByUrl(
-      new URL(
-        `${SCP_DATA_API_ORIGIN}${SCP_DATA_API_PATH_PREFIX}${collection}/${fileName}`,
-      ),
-    );
+    return this.getJsonByUrl(buildApiUrl(`${collection}/${fileName}`));
   }
 
   private assertAllowlisted(url: URL) {
@@ -110,21 +106,29 @@ export class ScpDataApiClient {
     }
   }
 
+  private async withInFlight<T>(
+    key: string,
+    fetcher: () => Promise<T>,
+  ): Promise<T> {
+    const existingInFlight = this.inFlight.get(key);
+    if (existingInFlight) {
+      return existingInFlight as Promise<T>;
+    }
+
+    const promise = fetcher();
+    this.inFlight.set(key, promise as Promise<unknown>);
+    try {
+      return await promise;
+    } finally {
+      this.inFlight.delete(key);
+    }
+  }
+
   private async fetchJsonWithCache<T>(url: string): Promise<T> {
     const cached = this.getCache(url);
-    const headers: Record<string, string> = {};
+    const headers = buildConditionalHeaders(cached);
 
-    if (cached?.etag) {
-      headers['If-None-Match'] = cached.etag;
-    }
-    if (cached?.lastModified) {
-      headers['If-Modified-Since'] = cached.lastModified;
-    }
-
-    const res = await this.fetchImpl(
-      url,
-      Object.keys(headers).length > 0 ? { headers } : undefined,
-    );
+    const res = await this.fetchImpl(url, headers ? { headers } : undefined);
     if (res.status === 304) {
       if (!cached) {
         throw new Error(`Got 304 but no cache entry exists for: ${url}`);

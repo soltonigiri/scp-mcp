@@ -69,4 +69,85 @@ describe('ScpSearchEngine', () => {
     expect(res.results.every((r) => r.tags.includes('even'))).toBe(true);
     expect(res.results.every((r) => r.series === 'series-1')).toBe(true);
   });
+
+  it('returns default snippets for empty query', () => {
+    const engine = new ScpSearchEngine();
+    engine.add({
+      id: 'SCP-001',
+      link: 'scp-001',
+      title: 'SCP-001',
+      url: 'https://example.com/scp-001',
+      page_id: '1001',
+      rating: 1,
+      tags: ['mystery'],
+      series: 'series-1',
+      created_at: '2020-01-01T00:00:00',
+      creator: 'Test',
+      text: 'A'.repeat(210),
+    });
+
+    const res = engine.search({ sort: 'relevance' });
+    const snippet = res.results[0]?.snippet ?? '';
+    expect(snippet).toHaveLength(201);
+    expect(snippet.endsWith('…')).toBe(true);
+  });
+
+  it('returns contextual snippets when query matches', () => {
+    const engine = new ScpSearchEngine();
+    engine.add({
+      id: 'SCP-002',
+      link: 'scp-002',
+      title: 'SCP-002',
+      url: 'https://example.com/scp-002',
+      page_id: '1002',
+      rating: 2,
+      tags: ['mystery'],
+      series: 'series-1',
+      created_at: '2020-01-02T00:00:00',
+      creator: 'Test',
+      text: `${'before '.repeat(20)}needle${' after'.repeat(30)}`,
+    });
+
+    const res = engine.search({ query: 'needle', sort: 'relevance' });
+    const snippet = res.results[0]?.snippet ?? '';
+    expect(snippet).toContain('needle');
+    expect(snippet.startsWith('…')).toBe(true);
+    expect(snippet.endsWith('…')).toBe(true);
+  });
+
+  it('returns fallback snippets when query missing', () => {
+    const engine = new ScpSearchEngine();
+    engine.add({
+      id: 'SCP-003',
+      link: 'scp-003',
+      title: 'Absent Case',
+      url: 'https://example.com/scp-003',
+      page_id: '1003',
+      rating: 2,
+      tags: ['mystery'],
+      series: 'series-1',
+      created_at: '2020-01-03T00:00:00',
+      creator: 'Test',
+      text: 'word '.repeat(200),
+    });
+    engine.add({
+      id: 'SCP-004',
+      link: 'scp-004',
+      title: 'Absent Case Two',
+      url: 'https://example.com/scp-004',
+      page_id: '1004',
+      rating: 1,
+      tags: ['mystery'],
+      series: 'series-1',
+      created_at: '2020-01-04T00:00:00',
+      creator: 'Test',
+      text: 'word '.repeat(200),
+    });
+
+    const res = engine.search({ query: 'absent', sort: 'rating' });
+    const snippet = res.results[1]?.snippet ?? '';
+    expect(snippet).not.toContain('absent');
+    expect(snippet.startsWith('…')).toBe(true);
+    expect(snippet.endsWith('…')).toBe(true);
+  });
 });

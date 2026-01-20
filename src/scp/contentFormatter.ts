@@ -21,15 +21,52 @@ export function formatScpContent(params: {
   options?: ContentFormatOptions;
 }): FormattedContent {
   if (params.format === 'wikitext') {
-    if (!params.raw_source) {
-      throw new Error('wikitext is not available for this page');
-    }
+    return formatWikitext(params.raw_source, params.images);
+  }
+
+  const { root, extractedImages } = prepareHtmlContent(params);
+  const images = selectImages(extractedImages, params.images);
+
+  if (params.format === 'html') {
     return {
-      content: params.raw_source.trim(),
-      images: normalizeImages(params.images),
+      content: (root.html() ?? '').trim(),
+      images,
     };
   }
 
+  if (params.format === 'text') {
+    return {
+      content: root.text().replace(/\s+/g, ' ').trim(),
+      images,
+    };
+  }
+
+  return {
+    content: formatMarkdown(root.html() ?? ''),
+    images,
+  };
+}
+
+function formatWikitext(
+  rawSource: string | undefined,
+  images: string[] | undefined,
+): FormattedContent {
+  if (!rawSource) {
+    throw new Error('wikitext is not available for this page');
+  }
+  return {
+    content: rawSource.trim(),
+    images: normalizeImages(images),
+  };
+}
+
+function prepareHtmlContent(params: {
+  raw_content?: string;
+  options?: ContentFormatOptions;
+}): {
+  root: ReturnType<typeof load> extends (html: string) => infer R ? R : never;
+  extractedImages: Array<{ url: string; alt?: string }>;
+} {
   if (!params.raw_content) {
     throw new Error('html content is not available for this page');
   }
@@ -53,28 +90,17 @@ export function formatScpContent(params: {
     $(el).remove();
   });
 
-  if (params.format === 'html') {
-    const html = root.html() ?? '';
-    return {
-      content: html.trim(),
-      images:
-        extractedImages.length > 0
-          ? extractedImages
-          : normalizeImages(params.images),
-    };
-  }
+  return { root, extractedImages };
+}
 
-  if (params.format === 'text') {
-    const text = root.text().replace(/\s+/g, ' ').trim();
-    return {
-      content: text,
-      images:
-        extractedImages.length > 0
-          ? extractedImages
-          : normalizeImages(params.images),
-    };
-  }
+function selectImages(
+  extractedImages: Array<{ url: string; alt?: string }>,
+  images: string[] | undefined,
+): Array<{ url: string; alt?: string }> {
+  return extractedImages.length > 0 ? extractedImages : normalizeImages(images);
+}
 
+function formatMarkdown(html: string): string {
   const turndown = new TurndownService({
     headingStyle: 'atx',
     codeBlockStyle: 'fenced',
@@ -82,15 +108,7 @@ export function formatScpContent(params: {
   });
   turndown.remove('img');
 
-  const html = root.html() ?? '';
-  const md = turndown.turndown(html).trim();
-  return {
-    content: md,
-    images:
-      extractedImages.length > 0
-        ? extractedImages
-        : normalizeImages(params.images),
-  };
+  return turndown.turndown(html).trim();
 }
 
 function normalizeImages(images: string[] | undefined): Array<{ url: string }> {

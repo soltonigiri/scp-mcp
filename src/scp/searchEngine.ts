@@ -83,15 +83,12 @@ export class ScpSearchEngine {
 
     const results: Array<{ doc: ScpSearchDocument; score?: number }> =
       query.length > 0
-        ? this.miniSearch.search(query).map((r) => ({
-            doc: this.docs.get(r.id) as ScpSearchDocument,
-            score: r.score,
-          }))
+        ? this.miniSearch
+            .search(query)
+            .flatMap((r) => toSearchResult(this.docs, r))
         : Array.from(this.docs.values()).map((doc) => ({ doc }));
 
-    const filtered = results
-      .filter(({ doc }) => Boolean(doc))
-      .filter(({ doc }) => matchesFilters(doc, filters));
+    const filtered = results.filter(({ doc }) => matchesFilters(doc, filters));
 
     const sorted = filtered.sort((a, b) => compareSearch(sort, a, b));
     const sliced = sorted.slice(0, limit);
@@ -111,6 +108,15 @@ export class ScpSearchEngine {
       })),
     };
   }
+}
+
+function toSearchResult(
+  docs: Map<string, ScpSearchDocument>,
+  result: { id: string; score?: number },
+): Array<{ doc: ScpSearchDocument; score?: number }> {
+  const doc = docs.get(result.id);
+  if (!doc) return [];
+  return [{ doc, score: result.score }];
 }
 
 function clampLimit(limit: number | undefined): number {
@@ -178,20 +184,38 @@ function compareSearch(
 }
 
 function makeSnippet(text: string, query: string, fallbackIdx: number): string {
-  const normalized = text.replace(/\s+/g, ' ').trim();
+  const normalized = normalizeSnippetText(text);
   if (normalized.length === 0) return '';
 
   const maxLen = 200;
   if (!query) {
-    const s = normalized.slice(0, maxLen);
-    return normalized.length > s.length ? `${s}…` : s;
+    return buildLeadingSnippet(normalized, maxLen);
   }
 
+  const firstIdx = findFirstMatchIndex(normalized, query);
+  if (firstIdx === -1) {
+    return buildFallbackSnippet(normalized, fallbackIdx, maxLen);
+  }
+
+  return buildContextSnippet(normalized, firstIdx);
+}
+
+function normalizeSnippetText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim();
+}
+
+function buildLeadingSnippet(normalized: string, maxLen: number): string {
+  const slice = normalized.slice(0, maxLen);
+  return normalized.length > slice.length ? `${slice}…` : slice;
+}
+
+function findFirstMatchIndex(normalized: string, query: string): number {
   const terms = query
     .toLowerCase()
     .split(/\s+/)
     .map((t) => t.trim())
     .filter((t) => t.length > 0);
+  if (terms.length === 0) return -1;
 
   const lower = normalized.toLowerCase();
   let firstIdx = -1;
@@ -201,26 +225,42 @@ function makeSnippet(text: string, query: string, fallbackIdx: number): string {
       firstIdx = idx;
     }
   }
+  return firstIdx;
+}
 
-  if (firstIdx === -1) {
-    const start = Math.min(
-      fallbackIdx * 40,
-      Math.max(0, normalized.length - maxLen),
-    );
-    const s = normalized.slice(start, start + maxLen);
-    const prefix = start > 0 ? '…' : '';
-    const suffix = start + maxLen < normalized.length ? '…' : '';
-    return `${prefix}${s}${suffix}`;
-  }
+function buildFallbackSnippet(
+  normalized: string,
+  fallbackIdx: number,
+  maxLen: number,
+): string {
+  const start = Math.min(
+    fallbackIdx * 40,
+    Math.max(0, normalized.length - maxLen),
+  );
+  return wrapSnippet(normalized.slice(start, start + maxLen), {
+    prefix: start > 0,
+    suffix: start + maxLen < normalized.length,
+  });
+}
 
+function buildContextSnippet(normalized: string, firstIdx: number): string {
   const contextBefore = 80;
   const contextAfter = 120;
   const start = Math.max(0, firstIdx - contextBefore);
   const end = Math.min(normalized.length, firstIdx + contextAfter);
-  const s = normalized.slice(start, end);
-  const prefix = start > 0 ? '…' : '';
-  const suffix = end < normalized.length ? '…' : '';
-  return `${prefix}${s}${suffix}`;
+  return wrapSnippet(normalized.slice(start, end), {
+    prefix: start > 0,
+    suffix: end < normalized.length,
+  });
+}
+
+function wrapSnippet(
+  slice: string,
+  opts: { prefix: boolean; suffix: boolean },
+): string {
+  const prefix = opts.prefix ? '…' : '';
+  const suffix = opts.suffix ? '…' : '';
+  return `${prefix}${slice}${suffix}`;
 }
 
 function parseDateOrUndefined(value: string | undefined): Date | undefined {
