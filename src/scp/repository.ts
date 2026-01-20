@@ -8,6 +8,7 @@ import {
 import { buildAttributionText } from './licensing.js';
 import {
   ScpSearchEngine,
+  type ScpSearchDocument,
   type ScpSearchParams,
   type ScpSearchResponse,
 } from './searchEngine.js';
@@ -161,35 +162,14 @@ export class ScpRepository {
         if (collection === 'hubs') {
           const index = await this.source.getIndex('hubs');
           for (const [key, rawEntry] of Object.entries(index)) {
-            const entry = rawEntry as Record<string, unknown>;
-            const link = stringOrEmpty(entry.link);
-            const title = stringOrEmpty(entry.title);
-            const url = stringOrEmpty(entry.url);
-            const pageId = String(entry.page_id ?? '');
-            const rating = Number(entry.rating ?? 0);
-            const tags = arrayOfStrings(entry.tags);
-            const createdAt = stringOrEmpty(entry.created_at);
-            const creator = stringOrUndefined(entry.creator);
-            const rawContent = stringOrUndefined(entry.raw_content);
-            const text = rawContent
-              ? extractTextFromRawContent(rawContent)
-              : '';
-
-            if (!link || !title || !url || !pageId) continue;
-
-            this.searchEngine.add({
-              id: `${collection}:${key}`,
-              link,
-              title,
-              url,
-              page_id: pageId,
-              rating: Number.isFinite(rating) ? rating : 0,
-              tags,
-              series: undefined,
-              created_at: createdAt,
-              creator,
-              text,
+            const doc = buildSearchDocument({
+              collection,
+              key,
+              entry: rawEntry as Record<string, unknown>,
+              preferHtmlText: true,
             });
+            if (!doc) continue;
+            this.searchEngine.add(doc);
           }
           continue;
         }
@@ -203,38 +183,14 @@ export class ScpRepository {
             fileName,
           );
           for (const [key, rawEntry] of Object.entries(content)) {
-            const entry = rawEntry as Record<string, unknown>;
-            const link = stringOrEmpty(entry.link);
-            const title = stringOrEmpty(entry.title);
-            const url = stringOrEmpty(entry.url);
-            const pageId = String(entry.page_id ?? '');
-            const rating = Number(entry.rating ?? 0);
-            const tags = arrayOfStrings(entry.tags);
-            const series = stringOrUndefined(entry.series);
-            const createdAt = stringOrEmpty(entry.created_at);
-            const creator = stringOrUndefined(entry.creator);
-
-            const rawContent = stringOrUndefined(entry.raw_content);
-            const rawSource = stringOrUndefined(entry.raw_source);
-            const text = rawContent
-              ? extractTextFromRawContent(rawContent)
-              : (rawSource ?? '');
-
-            if (!link || !title || !url || !pageId) continue;
-
-            this.searchEngine.add({
-              id: `${collection}:${key}`,
-              link,
-              title,
-              url,
-              page_id: pageId,
-              rating: Number.isFinite(rating) ? rating : 0,
-              tags,
-              series,
-              created_at: createdAt,
-              creator,
-              text,
+            const doc = buildSearchDocument({
+              collection,
+              key,
+              entry: rawEntry as Record<string, unknown>,
+              preferHtmlText: false,
             });
+            if (!doc) continue;
+            this.searchEngine.add(doc);
           }
         }
       }
@@ -250,48 +206,34 @@ export class ScpRepository {
       for (const collection of this.collections) {
         const index = await this.source.getIndex(collection);
         for (const [key, rawEntry] of Object.entries(index)) {
-          const entry = rawEntry as Record<string, unknown>;
-          const link = stringOrEmpty(entry.link);
-          const title = stringOrEmpty(entry.title);
-          const url = stringOrEmpty(entry.url);
-          const pageId = String(entry.page_id ?? '');
-
-          if (!link || !title || !url || !pageId) continue;
+          const base = buildBaseFields(rawEntry as Record<string, unknown>);
+          if (!base) continue;
 
           const meta: ScpPageMeta = {
             collection,
             key,
-            link,
-            title,
-            url,
-            page_id: pageId,
-            rating: numberOrUndefined(entry.rating),
-            tags: arrayOfStrings(entry.tags),
-            series: stringOrUndefined(entry.series),
-            created_at: stringOrUndefined(entry.created_at),
-            creator: stringOrUndefined(entry.creator),
-            history: Array.isArray(entry.history)
-              ? (entry.history as unknown[])
+            link: base.link,
+            title: base.title,
+            url: base.url,
+            page_id: base.pageId,
+            rating: numberOrUndefined(base.entry.rating),
+            tags: arrayOfStrings(base.entry.tags),
+            series: stringOrUndefined(base.entry.series),
+            created_at: stringOrUndefined(base.entry.created_at),
+            creator: stringOrUndefined(base.entry.creator),
+            history: Array.isArray(base.entry.history)
+              ? (base.entry.history as unknown[])
               : undefined,
-            references: arrayOfStrings(entry.references),
-            hubs: arrayOfStrings(entry.hubs),
-            images: arrayOfStrings(entry.images),
-            content_file: stringOrUndefined(entry.content_file),
-            raw_content: stringOrUndefined(entry.raw_content),
-            raw_source: stringOrUndefined(entry.raw_source),
-            scp_number: numberOrUndefined(entry.scp_number),
+            references: arrayOfStrings(base.entry.references),
+            hubs: arrayOfStrings(base.entry.hubs),
+            images: arrayOfStrings(base.entry.images),
+            content_file: stringOrUndefined(base.entry.content_file),
+            raw_content: stringOrUndefined(base.entry.raw_content),
+            raw_source: stringOrUndefined(base.entry.raw_source),
+            scp_number: numberOrUndefined(base.entry.scp_number),
           };
 
-          const ref = makeRef(collection, key);
-          this.pagesByRef.set(ref, meta);
-
-          const linkKey = normalizeLinkKey(link);
-          pushToMapArray(this.refsByLink, linkKey, ref);
-          pushToMapArray(this.refsByPageId, pageId, ref);
-
-          if (collection === 'items' && meta.scp_number !== undefined) {
-            pushToMapArray(this.itemRefsByScpNumber, meta.scp_number, ref);
-          }
+          this.registerPageRef(meta);
         }
       }
     })();
@@ -307,21 +249,20 @@ export class ScpRepository {
     await this.ensureIndex();
 
     if (params.link) {
-      const linkKey = normalizeLinkKey(params.link);
-      const refs = this.refsByLink.get(linkKey) ?? [];
-      if (refs.length === 0)
-        throw new Error(`Page not found for link: ${params.link}`);
-      if (refs.length > 1) throw new Error(`Ambiguous link: ${params.link}`);
-      return refs[0] as string;
+      return resolveSingleRef({
+        label: 'link',
+        value: params.link,
+        refs: this.refsByLink.get(normalizeLinkKey(params.link)),
+      });
     }
 
     if (params.page_id !== undefined) {
       const pageId = String(params.page_id);
-      const refs = this.refsByPageId.get(pageId) ?? [];
-      if (refs.length === 0)
-        throw new Error(`Page not found for page_id: ${pageId}`);
-      if (refs.length > 1) throw new Error(`Ambiguous page_id: ${pageId}`);
-      return refs[0] as string;
+      return resolveSingleRef({
+        label: 'page_id',
+        value: pageId,
+        refs: this.refsByPageId.get(pageId),
+      });
     }
 
     if (params.scp_number !== undefined) {
@@ -342,6 +283,19 @@ export class ScpRepository {
     const refs = this.refsByLink.get(normalizeLinkKey(link));
     if (!refs || refs.length !== 1) return undefined;
     return this.pagesByRef.get(refs[0] as string);
+  }
+
+  private registerPageRef(meta: ScpPageMeta) {
+    const ref = makeRef(meta.collection, meta.key);
+    this.pagesByRef.set(ref, meta);
+
+    const linkKey = normalizeLinkKey(meta.link);
+    pushToMapArray(this.refsByLink, linkKey, ref);
+    pushToMapArray(this.refsByPageId, meta.page_id, ref);
+
+    if (meta.collection === 'items' && meta.scp_number !== undefined) {
+      pushToMapArray(this.itemRefsByScpNumber, meta.scp_number, ref);
+    }
   }
 
   private async getRawContent(meta: ScpPageMeta): Promise<{
@@ -407,6 +361,76 @@ function extractTextFromRawContent(rawContent: string): string {
   const $ = load(rawContent);
   const el = $('#page-content');
   return (el.length > 0 ? el.text() : $.text()).trim();
+}
+
+type BaseFields = {
+  link: string;
+  title: string;
+  url: string;
+  pageId: string;
+  entry: Record<string, unknown>;
+};
+
+type BuildSearchDocParams = {
+  collection: ScpCollection;
+  key: string;
+  entry: Record<string, unknown>;
+  preferHtmlText: boolean;
+};
+
+function buildBaseFields(
+  entry: Record<string, unknown>,
+): BaseFields | undefined {
+  const link = stringOrEmpty(entry.link);
+  const title = stringOrEmpty(entry.title);
+  const url = stringOrEmpty(entry.url);
+  const pageId = String(entry.page_id ?? '');
+  if (!link || !title || !url || !pageId) return undefined;
+  return { link, title, url, pageId, entry };
+}
+
+function buildSearchDocument(
+  params: BuildSearchDocParams,
+): ScpSearchDocument | undefined {
+  const base = buildBaseFields(params.entry);
+  if (!base) return undefined;
+
+  const rawContent = stringOrUndefined(base.entry.raw_content);
+  const rawSource = stringOrUndefined(base.entry.raw_source);
+  const text = params.preferHtmlText
+    ? rawContent
+      ? extractTextFromRawContent(rawContent)
+      : ''
+    : rawContent
+      ? extractTextFromRawContent(rawContent)
+      : (rawSource ?? '');
+
+  return {
+    id: `${params.collection}:${params.key}`,
+    link: base.link,
+    title: base.title,
+    url: base.url,
+    page_id: base.pageId,
+    rating: numberOrUndefined(base.entry.rating) ?? 0,
+    tags: arrayOfStrings(base.entry.tags),
+    series: stringOrUndefined(base.entry.series),
+    created_at: stringOrEmpty(base.entry.created_at),
+    creator: stringOrUndefined(base.entry.creator),
+    text,
+  };
+}
+
+function resolveSingleRef(params: {
+  label: 'link' | 'page_id';
+  value: string;
+  refs: string[] | undefined;
+}): string {
+  const refs = params.refs ?? [];
+  if (refs.length === 0)
+    throw new Error(`Page not found for ${params.label}: ${params.value}`);
+  if (refs.length > 1)
+    throw new Error(`Ambiguous ${params.label}: ${params.value}`);
+  return refs[0] as string;
 }
 
 function stringOrEmpty(value: unknown): string {

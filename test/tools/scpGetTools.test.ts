@@ -92,8 +92,11 @@ function createItemsRepo() {
         return index as unknown as Record<string, unknown>;
       },
       getContentIndexFor: async (collection) => {
-        if (collection !== 'items') return {};
-        return { 'series-1': 'content_series-1.json' };
+        if (collection !== 'items') return {} as Record<string, string>;
+        return { 'series-1': 'content_series-1.json' } as Record<
+          string,
+          string
+        >;
       },
       getContentFileFor: async (collection, fileName) => {
         if (collection !== 'items') return {};
@@ -111,6 +114,18 @@ describe('SCP get tools', () => {
     const res = await scpGetPageToolCall(repo, { link: 'scp-173' });
     expect(res.page.link).toBe('scp-173');
     expect(res.license.name).toMatch(/CC BY-SA 3.0/);
+  });
+
+  it('scp_get_page resolves by scp_number', async () => {
+    const repo = createItemsRepo();
+    const res = await scpGetPageToolCall(repo, { scp_number: 173 });
+    expect(res.page.link).toBe('scp-173');
+  });
+
+  it('scp_get_page resolves by page_id', async () => {
+    const repo = createItemsRepo();
+    const res = await scpGetPageToolCall(repo, { page_id: '1956172' });
+    expect(res.page.link).toBe('scp-172');
   });
 
   it('scp_get_content returns requested formats', async () => {
