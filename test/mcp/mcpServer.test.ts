@@ -56,8 +56,11 @@ function createItemsRepo() {
         return index as unknown as Record<string, unknown>;
       },
       getContentIndexFor: async (collection) => {
-        if (collection !== 'items') return {};
-        return { 'series-1': 'content_series-1.json' };
+        if (collection !== 'items') return {} as Record<string, string>;
+        return { 'series-1': 'content_series-1.json' } as Record<
+          string,
+          string
+        >;
       },
       getContentFileFor: async (collection, fileName) => {
         if (collection !== 'items') return {};
@@ -106,6 +109,85 @@ describe('scp-mcp server', () => {
         | Record<string, unknown>
         | undefined;
       expect(sc?.license).toBeTruthy();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it('returns rate limit errors in structured content', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const prevWindow = process.env.SCP_MCP_RATE_LIMIT_WINDOW_MS;
+    const prevMax = process.env.SCP_MCP_RATE_LIMIT_MAX_REQUESTS;
+    process.env.SCP_MCP_RATE_LIMIT_WINDOW_MS = '60000';
+    process.env.SCP_MCP_RATE_LIMIT_MAX_REQUESTS = '1';
+    try {
+      const repo = createItemsRepo();
+      const server = createScpMcpServer(repo);
+
+      const [clientTransport, serverTransport] =
+        InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: 'test-client', version: '0.0.0' });
+
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+
+      await client.callTool({
+        name: 'scp_get_attribution',
+        arguments: { link: 'scp-173' },
+      });
+
+      const result = await client.callTool({
+        name: 'scp_get_attribution',
+        arguments: { link: 'scp-173' },
+      });
+
+      const sc = result.structuredContent as
+        | Record<string, unknown>
+        | undefined;
+      expect(result.isError).toBe(true);
+      expect(sc?.error).toEqual(expect.stringContaining('Rate limit exceeded'));
+    } finally {
+      consoleError.mockRestore();
+      if (prevWindow === undefined) {
+        delete process.env.SCP_MCP_RATE_LIMIT_WINDOW_MS;
+      } else {
+        process.env.SCP_MCP_RATE_LIMIT_WINDOW_MS = prevWindow;
+      }
+      if (prevMax === undefined) {
+        delete process.env.SCP_MCP_RATE_LIMIT_MAX_REQUESTS;
+      } else {
+        process.env.SCP_MCP_RATE_LIMIT_MAX_REQUESTS = prevMax;
+      }
+    }
+  });
+
+  it('returns tool errors in structured content', async () => {
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    try {
+      const repo = createItemsRepo();
+      const server = createScpMcpServer(repo);
+
+      const [clientTransport, serverTransport] =
+        InMemoryTransport.createLinkedPair();
+      const client = new Client({ name: 'test-client', version: '0.0.0' });
+
+      await server.connect(serverTransport);
+      await client.connect(clientTransport);
+
+      const result = await client.callTool({
+        name: 'scp_get_attribution',
+        arguments: { link: 'scp-9999' },
+      });
+
+      const sc = result.structuredContent as
+        | Record<string, unknown>
+        | undefined;
+      expect(result.isError).toBe(true);
+      expect(sc?.error).toBe('Page not found for link: scp-9999');
     } finally {
       consoleError.mockRestore();
     }
