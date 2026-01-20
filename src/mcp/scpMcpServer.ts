@@ -3,8 +3,10 @@ import {
   ResourceTemplate,
 } from '@modelcontextprotocol/sdk/server/mcp.js';
 import type { CallToolResult } from '@modelcontextprotocol/sdk/types.js';
+import type { ZodRawShape } from 'zod/v4';
 import * as z from 'zod/v4';
 
+import { VERSION } from '../index.js';
 import type { ScpRepository } from '../scp/repository.js';
 import {
   SCP_CONTENT_LICENSE,
@@ -12,11 +14,32 @@ import {
 } from '../scp/licensing.js';
 import { AuditLogger, truncateForLog } from '../security/auditLogger.js';
 import { FixedWindowRateLimiter } from '../security/rateLimiter.js';
-import { scpGetAttributionToolCall } from '../tools/scpGetAttribution.js';
-import { scpGetContentToolCall } from '../tools/scpGetContent.js';
-import { scpGetPageToolCall } from '../tools/scpGetPage.js';
-import { scpGetRelatedToolCall } from '../tools/scpGetRelated.js';
-import { scpSearchToolCall } from '../tools/scpSearch.js';
+import {
+  scpGetAttributionToolCall,
+  type ScpGetAttributionToolInput,
+} from '../tools/scpGetAttribution.js';
+import {
+  scpGetContentToolCall,
+  type ScpGetContentToolInput,
+} from '../tools/scpGetContent.js';
+import {
+  scpGetPageToolCall,
+  type ScpGetPageToolInput,
+} from '../tools/scpGetPage.js';
+import {
+  scpGetRelatedToolCall,
+  type ScpGetRelatedToolInput,
+} from '../tools/scpGetRelated.js';
+import {
+  scpSearchToolCall,
+  type ScpSearchToolInput,
+} from '../tools/scpSearch.js';
+
+type ToolDefinition = {
+  title: string;
+  description: string;
+  inputSchema: ZodRawShape;
+};
 
 export function createScpMcpServer(repo: ScpRepository) {
   const auditLogger = new AuditLogger({
@@ -30,12 +53,18 @@ export function createScpMcpServer(repo: ScpRepository) {
   const server = new McpServer(
     {
       name: 'scp-mcp',
-      version: '0.1.0',
+      version: VERSION,
     },
     { capabilities: { logging: {} } },
   );
 
-  server.registerTool(
+  const registerWrappedTool = createRegisterWrappedTool(
+    server,
+    auditLogger,
+    rateLimiter,
+  );
+
+  registerWrappedTool<ScpSearchToolInput, Record<string, unknown>>(
     'scp_search',
     {
       title: 'SCP Search',
@@ -69,18 +98,10 @@ export function createScpMcpServer(repo: ScpRepository) {
           .describe('Sort order'),
       },
     },
-    async (args, extra) =>
-      wrapStructuredCall(
-        'scp_search',
-        args,
-        extra,
-        auditLogger,
-        rateLimiter,
-        () => scpSearchToolCall(repo, args),
-      ),
+    (args) => scpSearchToolCall(repo, args),
   );
 
-  server.registerTool(
+  registerWrappedTool<ScpGetPageToolInput, Record<string, unknown>>(
     'scp_get_page',
     {
       title: 'SCP Get Page',
@@ -98,18 +119,10 @@ export function createScpMcpServer(repo: ScpRepository) {
           .describe('Wikidot page id'),
       },
     },
-    async (args, extra) =>
-      wrapStructuredCall(
-        'scp_get_page',
-        args,
-        extra,
-        auditLogger,
-        rateLimiter,
-        () => scpGetPageToolCall(repo, args),
-      ),
+    (args) => scpGetPageToolCall(repo, args),
   );
 
-  server.registerTool(
+  registerWrappedTool<ScpGetContentToolInput, Record<string, unknown>>(
     'scp_get_content',
     {
       title: 'SCP Get Content',
@@ -133,18 +146,10 @@ export function createScpMcpServer(repo: ScpRepository) {
           .describe('Whether to include footnotes'),
       },
     },
-    async (args, extra) =>
-      wrapStructuredCall(
-        'scp_get_content',
-        args,
-        extra,
-        auditLogger,
-        rateLimiter,
-        () => scpGetContentToolCall(repo, args),
-      ),
+    (args) => scpGetContentToolCall(repo, args),
   );
 
-  server.registerTool(
+  registerWrappedTool<ScpGetRelatedToolInput, Record<string, unknown>>(
     'scp_get_related',
     {
       title: 'SCP Get Related',
@@ -153,18 +158,10 @@ export function createScpMcpServer(repo: ScpRepository) {
         link: z.string().describe('Page slug (e.g., "scp-173")'),
       },
     },
-    async (args, extra) =>
-      wrapStructuredCall(
-        'scp_get_related',
-        args,
-        extra,
-        auditLogger,
-        rateLimiter,
-        () => scpGetRelatedToolCall(repo, args),
-      ),
+    (args) => scpGetRelatedToolCall(repo, args),
   );
 
-  server.registerTool(
+  registerWrappedTool<ScpGetAttributionToolInput, Record<string, unknown>>(
     'scp_get_attribution',
     {
       title: 'SCP Get Attribution',
@@ -173,15 +170,7 @@ export function createScpMcpServer(repo: ScpRepository) {
         link: z.string().describe('Page slug (e.g., "scp-173")'),
       },
     },
-    async (args, extra) =>
-      wrapStructuredCall(
-        'scp_get_attribution',
-        args,
-        extra,
-        auditLogger,
-        rateLimiter,
-        () => scpGetAttributionToolCall(repo, args),
-      ),
+    (args) => scpGetAttributionToolCall(repo, args),
   );
 
   server.registerPrompt(
@@ -324,6 +313,34 @@ export function createScpMcpServer(repo: ScpRepository) {
   return server;
 }
 
+function createRegisterWrappedTool(
+  server: McpServer,
+  auditLogger: AuditLogger,
+  rateLimiter: FixedWindowRateLimiter,
+) {
+  return function registerWrappedTool<
+    TArgs extends Record<string, unknown>,
+    TResult extends Record<string, unknown>,
+  >(
+    name: string,
+    definition: ToolDefinition,
+    handler: (args: TArgs) => Promise<TResult>,
+  ) {
+    server.registerTool(
+      name,
+      {
+        title: definition.title,
+        description: definition.description,
+        inputSchema: definition.inputSchema,
+      },
+      async (args, extra) =>
+        wrapStructuredCall(name, args, extra, auditLogger, rateLimiter, () =>
+          handler(args as TArgs),
+        ),
+    );
+  };
+}
+
 async function wrapStructuredCall<T extends Record<string, unknown>>(
   tool: string,
   args: unknown,
@@ -336,90 +353,118 @@ async function wrapStructuredCall<T extends Record<string, unknown>>(
   const rateKey = sessionId ? `session:${sessionId}` : 'global';
   const limit = rateLimiter.consume(rateKey);
   if (!limit.allowed) {
-    const resetAtIso = new Date(limit.resetAtMs).toISOString();
-    const message = `Rate limit exceeded. Try again after ${resetAtIso}.`;
-    auditLogger.log({
-      ts: new Date().toISOString(),
-      session_id: sessionId,
+    return buildStructuredError(
       tool,
-      args: truncateForLog(args),
-      error: message,
-    });
-    return {
-      isError: true,
-      content: [{ type: 'text' as const, text: message }],
-      structuredContent: { error: message },
-    };
+      sessionId,
+      args,
+      auditLogger,
+      buildRateLimitMessage(limit.resetAtMs),
+    );
   }
 
   try {
     const value = await fn();
-    auditLogger.log({
-      ts: new Date().toISOString(),
-      session_id: sessionId,
-      tool,
-      args: truncateForLog(args),
-      result_meta: summarizeResult(tool, value),
-    });
-    return {
-      content: [
-        { type: 'text' as const, text: JSON.stringify(value, null, 2) },
-      ],
-      structuredContent: value,
-    };
+    logAuditSuccess(tool, sessionId, args, auditLogger, value);
+    return buildStructuredSuccess(value);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
-    auditLogger.log({
-      ts: new Date().toISOString(),
-      session_id: sessionId,
-      tool,
-      args: truncateForLog(args),
-      error: message,
-    });
-    return {
-      isError: true,
-      content: [{ type: 'text' as const, text: message }],
-      structuredContent: { error: message },
-    };
+    return buildStructuredError(tool, sessionId, args, auditLogger, message);
   }
 }
 
-function summarizeResult(
-  tool: string,
+function buildRateLimitMessage(resetAtMs: number): string {
+  const resetAtIso = new Date(resetAtMs).toISOString();
+  return `Rate limit exceeded. Try again after ${resetAtIso}.`;
+}
+
+function buildStructuredSuccess(
   value: Record<string, unknown>,
-): Record<string, unknown> {
-  if (tool === 'scp_search') {
-    const results = Array.isArray(value.results)
-      ? value.results.length
-      : undefined;
-    return { results };
-  }
-  if (tool === 'scp_get_related') {
-    const related = Array.isArray(value.related)
-      ? value.related.length
-      : undefined;
-    return { related };
-  }
-  if (tool === 'scp_get_content') {
-    const format = typeof value.format === 'string' ? value.format : undefined;
-    const contentLen =
-      typeof value.content === 'string' ? value.content.length : undefined;
-    return { format, content_length: contentLen };
-  }
-  if (tool === 'scp_get_page') {
+): CallToolResult {
+  return {
+    content: [{ type: 'text' as const, text: JSON.stringify(value, null, 2) }],
+    structuredContent: value,
+  };
+}
+
+function buildStructuredError(
+  tool: string,
+  sessionId: string | undefined,
+  args: unknown,
+  auditLogger: AuditLogger,
+  message: string,
+): CallToolResult {
+  logAuditError(tool, sessionId, args, auditLogger, message);
+  return {
+    isError: true,
+    content: [{ type: 'text' as const, text: message }],
+    structuredContent: { error: message },
+  };
+}
+
+function logAuditSuccess(
+  tool: string,
+  sessionId: string | undefined,
+  args: unknown,
+  auditLogger: AuditLogger,
+  value: Record<string, unknown>,
+) {
+  auditLogger.log({
+    ts: new Date().toISOString(),
+    session_id: sessionId,
+    tool,
+    args: truncateForLog(args),
+    result_meta: summarizeResult(tool, value),
+  });
+}
+
+function logAuditError(
+  tool: string,
+  sessionId: string | undefined,
+  args: unknown,
+  auditLogger: AuditLogger,
+  message: string,
+) {
+  auditLogger.log({
+    ts: new Date().toISOString(),
+    session_id: sessionId,
+    tool,
+    args: truncateForLog(args),
+    error: message,
+  });
+}
+
+const RESULT_SUMMARIZERS: Record<
+  string,
+  (value: Record<string, unknown>) => Record<string, unknown>
+> = {
+  scp_search: (value) => ({
+    results: Array.isArray(value.results) ? value.results.length : undefined,
+  }),
+  scp_get_related: (value) => ({
+    related: Array.isArray(value.related) ? value.related.length : undefined,
+  }),
+  scp_get_content: (value) => ({
+    format: typeof value.format === 'string' ? value.format : undefined,
+    content_length:
+      typeof value.content === 'string' ? value.content.length : undefined,
+  }),
+  scp_get_page: (value) => {
     const page = value.page as Record<string, unknown> | undefined;
     return {
       link: typeof page?.link === 'string' ? page.link : undefined,
       page_id: typeof page?.page_id === 'string' ? page.page_id : undefined,
     };
-  }
-  if (tool === 'scp_get_attribution') {
-    const authors = Array.isArray(value.authors)
-      ? value.authors.length
-      : undefined;
-    return { authors };
-  }
-  return {};
+  },
+  scp_get_attribution: (value) => ({
+    authors: Array.isArray(value.authors) ? value.authors.length : undefined,
+  }),
+};
+
+function summarizeResult(
+  tool: string,
+  value: Record<string, unknown>,
+): Record<string, unknown> {
+  return RESULT_SUMMARIZERS[tool]?.(value) ?? {};
 }
 
 function numberFromEnv(name: string, fallback: number): number {
