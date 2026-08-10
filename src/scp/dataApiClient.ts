@@ -128,7 +128,10 @@ export class ScpDataApiClient {
     const cached = this.getCache(url);
     const headers = buildConditionalHeaders(cached);
 
-    const res = await this.fetchImpl(url, headers ? { headers } : undefined);
+    const res = await this.fetchImpl(url, {
+      redirect: 'error',
+      ...(headers ? { headers } : {}),
+    });
     if (res.status === 304) {
       if (!cached) {
         throw new Error(`Got 304 but no cache entry exists for: ${url}`);

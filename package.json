@@ -4,6 +4,12 @@
   "description": "SCP Data API wrapper as a Model Context Protocol (MCP) server",
   "type": "module",
   "main": "dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "lint": "eslint .",
@@ -18,11 +24,11 @@
   "author": "",
   "license": "MIT",
   "engines": {
-    "node": ">=20"
+    "node": ">=20.19.0"
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.25.2",
-    "cheerio": "^1.1.2",
+    "@modelcontextprotocol/sdk": "^1.30.0",
+    "cheerio": "^1.2.0",
     "minisearch": "^7.1.2",
     "turndown": "^7.2.1",
     "zod": "^4.0.0"
@@ -36,6 +42,6 @@
     "eslint": "^9.18.0",
     "prettier": "^3.5.2",
     "typescript": "^5.8.2",
-    "vitest": "^2.1.8"
+    "vitest": "^4.1.10"
   }
 }

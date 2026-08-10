@@ -14,6 +14,22 @@ describe('ScpDataApiClient', () => {
     ).rejects.toThrow(/not allowlisted/i);
   });
 
+  it('does not follow redirects outside the allowlisted endpoint', async () => {
+    const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
+    const client = new ScpDataApiClient({
+      fetch: async (input, init) => {
+        calls.push({ input, init });
+        return new Response(JSON.stringify({ ok: true }), { status: 200 });
+      },
+    });
+
+    await client.getJsonByUrl(
+      'https://scp-data.tedivm.com/data/scp/items/index.json',
+    );
+
+    expect(calls[0]?.init?.redirect).toBe('error');
+  });
+
   it('uses ETag/Last-Modified for in-memory strong caching', async () => {
     const calls: Array<{ input: RequestInfo | URL; init?: RequestInit }> = [];
     const etag = '"abc"';

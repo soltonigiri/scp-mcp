@@ -1,22 +1,41 @@
 # scp-mcp
 
-SCP Data API を一次ソースとして、SCP Wiki由来のページを **検索・取得・引用** できる Model Context Protocol（MCP）サーバです。
+An unofficial Model Context Protocol (MCP) server for SCP Wiki content.
+It searches and retrieves pages through the SCP Data API. Five read-only tools
+return content with source, author, and license metadata.
 
-## 重要（ライセンス/非公式）
+**Maintenance status:** Maintained.
+
+The current package version is `0.1.0`, and this is a pre-1.0 codebase.
+
+CI checks formatting, lint, tests, the build, dependencies, and package
+contents on Node.js 20.
+
+## Quick start
+
+Requirements: Node.js 20.19 or later and npm.
+
+```bash
+git clone https://github.com/soltonigiri/scp-mcp.git
+cd scp-mcp
+npm ci
+npm test
+npm run build
+npm run mcp:stdio
+```
+
+## 概要
+
+SCP Data API を一次ソースとして、SCP Wiki由来のページを検索、取得、引用できるMCPサーバーです。
+データ取得専用で、SCP Wikiの投稿、編集、投票、ログイン機能はありません。
+
+## ライセンスと非公式プロジェクトであること
 
 - 本プロジェクトは **非公式** です（SCP Foundation / Wikidot 公式ではありません）。
 - 本リポジトリのソースコードは **MIT License** です（`LICENSE`）。
 - SCP Wiki のコンテンツは原則 **CC BY-SA 3.0** です。二次利用時は帰属表示と継承（Share-Alike）が必要です。
 - 画像/メディアの取り扱いは特に注意してください（例: SCP-173 の過去の画像には追加の制約があり、商用利用は不可）。
 - ライセンス指針: https://scp-wiki.wikidot.com/licensing-guide
-
-## セットアップ
-
-```bash
-npm install
-npm test
-npm run build
-```
 
 ## 起動
 
@@ -36,17 +55,9 @@ npm run mcp:http
 - ヘルスチェック: `GET /healthz`
 - ポート: `PORT`（デフォルト `3000`）
 
-## クイックスタート
+## Codexから接続する
 
-まずは clone して依存を入れます。
-
-```bash
-git clone https://github.com/soltonigiri/scp-mcp.git
-cd scp-mcp
-npm install
-```
-
-次に Codex の `config.toml` に以下を追加します（`{scp-mcp-path}` は clone したパスに置き換えてください）。
+Quick startを実行した後、Codexの `config.toml` に以下を追加します。`{scp-mcp-path}` はcloneしたディレクトリのパスに置き換えてください。
 
 ```toml
 [mcp_servers.scp-mcp]
@@ -55,11 +66,11 @@ args = ["-lc", "cd {scp-mcp-path} && npm run --silent mcp:stdio"]
 startup_timeout_ms = 20000
 ```
 
-## Tools（MVP）
+## Tools
 
 すべての tool 戻り値は `structuredContent` に JSON を含みます（また、可読性のため `content[type=text]` にも JSON 文字列を返します）。
 
-- `scp_search`：キーワード/タグ/シリーズで検索（snippet付き）
+- `scp_search`：キーワード、タグ、シリーズで検索し、snippetを返す
 - `scp_get_page`：`link`/`scp_number`/`page_id` でページメタデータ取得
 - `scp_get_content`：本文取得（`markdown|text|html|wikitext`）
 - `scp_get_related`：references/hubs から関連抽出（`relation_type` 付与）
@@ -79,7 +90,7 @@ startup_timeout_ms = 20000
 ## セキュリティ/運用
 
 - 本文（および snippet）は **非信頼データ** として扱ってください（prompt injection を含み得ます）。
-- 外部フェッチは `https://scp-data.tedivm.com/data/scp/` 配下に許可リストで制限しています（SSRF対策）。
+- 外部フェッチは `https://scp-data.tedivm.com/data/scp/` 配下に制限し、SSRFを防ぎます。
 - Rate limit（tool 呼び出し単位、固定ウィンドウ）:
   - `SCP_MCP_RATE_LIMIT_WINDOW_MS`（デフォルト: `60000`）
   - `SCP_MCP_RATE_LIMIT_MAX_REQUESTS`（デフォルト: `60`）
