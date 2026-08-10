@@ -4,9 +4,13 @@ on:
   pull_request:
   push:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -20,6 +24,9 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: Audit dependencies
+        run: npm audit
+
       - name: Format check
         run: npm run format:check
 
@@ -31,3 +38,6 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Check package contents
+        run: npm pack --dry-run
