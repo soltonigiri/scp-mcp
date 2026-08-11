@@ -137,6 +137,7 @@ describe('SCP get tools', () => {
     });
     expect(text.content).toMatch(/statue/i);
     expect(text.content_is_untrusted).toBe(true);
+    expect(text).not.toHaveProperty('media_warnings');
 
     const wt = await scpGetContentToolCall(repo, {
       link: 'scp-173',
