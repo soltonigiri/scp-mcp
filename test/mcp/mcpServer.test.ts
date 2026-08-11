@@ -99,6 +99,15 @@ describe('scp-mcp server', () => {
           'scp_get_attribution',
         ]),
       );
+      for (const tool of tools.tools) {
+        expect(tool.annotations).toMatchObject({
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: true,
+        });
+        expect(tool.outputSchema?.type).toBe('object');
+      }
 
       const result = await client.callTool({
         name: 'scp_get_attribution',
@@ -109,6 +118,19 @@ describe('scp-mcp server', () => {
         | Record<string, unknown>
         | undefined;
       expect(sc?.license).toBeTruthy();
+
+      const contentResult = await client.callTool({
+        name: 'scp_get_content',
+        arguments: { link: 'scp-173', format: 'markdown' },
+      });
+      expect(contentResult.content).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            type: 'resource_link',
+            uri: 'scp://content/scp-173',
+          }),
+        ]),
+      );
     } finally {
       consoleError.mockRestore();
     }
