@@ -1,5 +1,3 @@
-import { load } from 'cheerio';
-
 import {
   formatScpContent,
   type ContentFormat,
@@ -179,39 +177,14 @@ export class ScpRepository {
 
     this.searchIndexPromise = (async () => {
       for (const collection of this.collections) {
-        if (collection === 'hubs') {
-          const index = await this.source.getIndex('hubs');
-          for (const [key, rawEntry] of Object.entries(index)) {
-            const doc = buildSearchDocument({
-              collection,
-              key,
-              entry: rawEntry as Record<string, unknown>,
-              preferHtmlText: true,
-            });
-            if (!doc) continue;
-            this.searchEngine.add(doc);
-          }
-          continue;
-        }
-
-        const contentIndex = await this.source.getContentIndexFor(collection);
-        const files = Array.from(new Set(Object.values(contentIndex)));
-
-        for (const fileName of files) {
-          const content = await this.source.getContentFileFor(
+        const index = await this.source.getIndex(collection);
+        for (const rawEntry of Object.values(index)) {
+          const doc = buildSearchDocument({
             collection,
-            fileName,
-          );
-          for (const [key, rawEntry] of Object.entries(content)) {
-            const doc = buildSearchDocument({
-              collection,
-              key,
-              entry: rawEntry as Record<string, unknown>,
-              preferHtmlText: false,
-            });
-            if (!doc) continue;
-            this.searchEngine.add(doc);
-          }
+            entry: rawEntry as Record<string, unknown>,
+          });
+          if (!doc) continue;
+          this.searchEngine.add(doc);
         }
       }
     })();
@@ -377,12 +350,6 @@ export type ScpPageMeta = {
   scp_number?: number;
 };
 
-function extractTextFromRawContent(rawContent: string): string {
-  const $ = load(rawContent);
-  const el = $('#page-content');
-  return (el.length > 0 ? el.text() : $.text()).trim();
-}
-
 type BaseFields = {
   link: string;
   title: string;
@@ -393,9 +360,7 @@ type BaseFields = {
 
 type BuildSearchDocParams = {
   collection: ScpCollection;
-  key: string;
   entry: Record<string, unknown>;
-  preferHtmlText: boolean;
 };
 
 function buildBaseFields(
@@ -415,15 +380,12 @@ function buildSearchDocument(
   const base = buildBaseFields(params.entry);
   if (!base) return undefined;
 
-  const rawContent = stringOrUndefined(base.entry.raw_content);
-  const rawSource = stringOrUndefined(base.entry.raw_source);
-  const text = params.preferHtmlText
-    ? rawContent
-      ? extractTextFromRawContent(rawContent)
-      : ''
-    : rawContent
-      ? extractTextFromRawContent(rawContent)
-      : (rawSource ?? '');
+  const tags = arrayOfStrings(base.entry.tags);
+  const series = stringOrUndefined(base.entry.series);
+  const creator = extractCreator(base.entry);
+  const text = [base.link, ...tags, series, creator]
+    .filter((value): value is string => Boolean(value))
+    .join(' ');
 
   return {
     id: `${params.collection}:${base.pageId}`,
@@ -432,10 +394,10 @@ function buildSearchDocument(
     url: base.url,
     page_id: base.pageId,
     rating: numberOrUndefined(base.entry.rating) ?? 0,
-    tags: arrayOfStrings(base.entry.tags),
-    series: stringOrUndefined(base.entry.series),
+    tags,
+    series,
     created_at: stringOrEmpty(base.entry.created_at),
-    creator: extractCreator(base.entry),
+    creator,
     text,
   };
 }
