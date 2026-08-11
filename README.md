@@ -24,6 +24,12 @@ npm run build
 npm run mcp:stdio
 ```
 
+npmで公開後は、cloneせずに起動できます。
+
+```bash
+npx scp-mcp
+```
+
 ## 概要
 
 SCP Data API を一次ソースとして、SCP Wiki由来のページを検索、取得、引用できるMCPサーバーです。
