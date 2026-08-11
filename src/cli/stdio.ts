@@ -3,10 +3,11 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { createScpMcpServer } from '../mcp/scpMcpServer.js';
 import { ScpDataApiClient } from '../scp/dataApiClient.js';
 import { ScpRepository } from '../scp/repository.js';
+import { ScpperClient } from '../scp/scpperClient.js';
 
 async function main() {
   const api = new ScpDataApiClient();
-  const repo = new ScpRepository(api);
+  const repo = new ScpRepository(api, { authorSource: new ScpperClient() });
 
   const server = createScpMcpServer(repo);
   const transport = new StdioServerTransport();

@@ -8,6 +8,7 @@ import type { Request, Response } from 'express';
 import { createScpMcpServer } from '../mcp/scpMcpServer.js';
 import { ScpDataApiClient } from '../scp/dataApiClient.js';
 import { ScpRepository } from '../scp/repository.js';
+import { ScpperClient } from '../scp/scpperClient.js';
 
 type Session = {
   transport: StreamableHTTPServerTransport;
@@ -15,7 +16,7 @@ type Session = {
 };
 
 const api = new ScpDataApiClient();
-const repo = new ScpRepository(api);
+const repo = new ScpRepository(api, { authorSource: new ScpperClient() });
 
 const sessions = new Map<string, Session>();
 

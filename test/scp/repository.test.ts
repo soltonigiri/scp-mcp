@@ -74,4 +74,57 @@ describe('ScpRepository', () => {
       'scp-001-j',
     ]);
   });
+
+  it('uses created_by as the author without including revision editors', async () => {
+    const repo = new ScpRepository(
+      {
+        getIndex: async () => ({
+          tale: {
+            link: 'a-tale',
+            title: 'A Tale',
+            url: 'https://scp-wiki.wikidot.com/a-tale',
+            page_id: '2001',
+            created_by: 'Original Author',
+            history: [{ author: 'Revision Editor' }],
+          },
+        }),
+        getContentIndexFor: async () => ({}),
+        getContentFileFor: async () => ({}),
+      },
+      { collections: ['tales'] },
+    );
+
+    const attribution = await repo.getAttribution({ link: 'a-tale' });
+    expect(attribution.authors).toEqual(['Original Author']);
+  });
+
+  it('keeps attribution available when the configured author source fails', async () => {
+    const repo = new ScpRepository(
+      {
+        getIndex: async () => ({
+          page: {
+            link: 'a-page',
+            title: 'A Page',
+            url: 'https://scp-wiki.wikidot.com/a-page',
+            page_id: '3001',
+            creator: 'Import Account',
+          },
+        }),
+        getContentIndexFor: async () => ({}),
+        getContentFileFor: async () => ({}),
+      },
+      {
+        collections: ['tales'],
+        authorSource: {
+          getAuthorsByPageId: async () => {
+            throw new Error('unavailable');
+          },
+        },
+      },
+    );
+
+    const attribution = await repo.getAttribution({ link: 'a-page' });
+    expect(attribution.authors).toEqual([]);
+    expect(attribution.attribution_text).toContain('Authors: (unknown)');
+  });
 });

@@ -26,8 +26,13 @@ export type ScpDataSource = {
   ) => Promise<Record<string, unknown>>;
 };
 
+export type ScpAuthorSource = {
+  getAuthorsByPageId: (pageId: string) => Promise<string[]>;
+};
+
 export class ScpRepository {
   private readonly source: ScpDataSource;
+  private readonly authorSource: ScpAuthorSource | undefined;
   private readonly collections: ScpCollection[];
   private readonly searchEngine = new ScpSearchEngine();
   private searchIndexPromise: Promise<void> | undefined;
@@ -39,9 +44,13 @@ export class ScpRepository {
 
   constructor(
     source: ScpDataSource,
-    options: { collections?: ScpCollection[] } = {},
+    options: {
+      collections?: ScpCollection[];
+      authorSource?: ScpAuthorSource;
+    } = {},
   ) {
     this.source = source;
+    this.authorSource = options.authorSource;
     this.collections = options.collections ?? ['items', 'tales', 'hubs', 'goi'];
   }
 
@@ -145,13 +154,24 @@ export class ScpRepository {
     page: ScpPageMeta;
   }> {
     const meta = await this.getPage({ link: params.link });
-    const authors = extractAuthors(meta.creator, meta.history);
+    const authors = await this.getAuthors(meta);
     const attribution_text = buildAttributionText({
       url: meta.url,
       title: meta.title,
       authors,
     });
     return { authors, attribution_text, page: meta };
+  }
+
+  private async getAuthors(meta: ScpPageMeta): Promise<string[]> {
+    if (!this.authorSource) return extractAuthors(meta.creator);
+    try {
+      return normalizeAuthors(
+        await this.authorSource.getAuthorsByPageId(meta.page_id),
+      );
+    } catch {
+      return [];
+    }
   }
 
   private async ensureSearchIndex(): Promise<void> {
@@ -220,7 +240,7 @@ export class ScpRepository {
             tags: arrayOfStrings(base.entry.tags),
             series: stringOrUndefined(base.entry.series),
             created_at: stringOrUndefined(base.entry.created_at),
-            creator: stringOrUndefined(base.entry.creator),
+            creator: extractCreator(base.entry),
             history: Array.isArray(base.entry.history)
               ? (base.entry.history as unknown[])
               : undefined,
@@ -415,7 +435,7 @@ function buildSearchDocument(
     tags: arrayOfStrings(base.entry.tags),
     series: stringOrUndefined(base.entry.series),
     created_at: stringOrEmpty(base.entry.created_at),
-    creator: stringOrUndefined(base.entry.creator),
+    creator: extractCreator(base.entry),
     text,
   };
 }
@@ -477,20 +497,22 @@ function pushToMapArray<K, V>(map: Map<K, V[]>, key: K, value: V) {
   existing.push(value);
 }
 
-function extractAuthors(
-  creator: string | undefined,
-  history: unknown[] | undefined,
-): string[] {
-  const authors: string[] = [];
-  if (creator) authors.push(creator);
-  if (history) {
-    for (const e of history) {
-      if (!e || typeof e !== 'object') continue;
-      const author = (e as Record<string, unknown>).author;
-      if (typeof author === 'string') authors.push(author);
-    }
+function extractCreator(entry: Record<string, unknown>): string | undefined {
+  for (const value of [entry.creator, entry.created_by]) {
+    if (typeof value !== 'string') continue;
+    const creator = value.trim();
+    if (creator) return creator;
   }
+  return undefined;
+}
+
+function extractAuthors(creator: string | undefined): string[] {
+  const author = creator?.trim();
+  return author ? [author] : [];
+}
+
+function normalizeAuthors(authors: string[]): string[] {
   return Array.from(
-    new Set(authors.map((a) => a.trim()).filter((a) => a.length > 0)),
+    new Set(authors.map((author) => author.trim()).filter(Boolean)),
   );
 }

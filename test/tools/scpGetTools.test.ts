@@ -38,7 +38,7 @@ function createItemsRepo() {
       references: ['scp-172'],
       hubs: [],
       images: [],
-      history: [{ author: 'Author B' }],
+      history: [{ author: 'Author B' }, { author: 'Editor C' }],
       series: 'series-1',
       scp_number: 173,
     },
@@ -104,7 +104,12 @@ function createItemsRepo() {
         return contentSeries1 as unknown as Record<string, unknown>;
       },
     },
-    { collections: ['items'] },
+    {
+      collections: ['items'],
+      authorSource: {
+        getAuthorsByPageId: async () => ['Moto42'],
+      },
+    },
   );
 }
 
@@ -163,7 +168,7 @@ describe('SCP get tools', () => {
   it('scp_get_attribution generates an attribution template', async () => {
     const repo = createItemsRepo();
     const res = await scpGetAttributionToolCall(repo, { link: 'scp-173' });
-    expect(res.authors).toContain('Author B');
+    expect(res.authors).toEqual(['Moto42']);
     expect(res.attribution_text).toMatch(/SCP-173/);
     expect(res.attribution_text).toMatch(/CC BY-SA 3.0/);
   });
