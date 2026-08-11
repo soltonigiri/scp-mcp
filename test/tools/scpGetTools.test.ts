@@ -76,7 +76,11 @@ function createItemsRepo() {
       creator: 'Author B',
       raw_content:
         '<html><body><div id="page-content"><p>A statue that moves when not observed.</p></div></body></html>',
-      raw_source: 'A statue that moves when not observed.',
+      raw_source: [
+        'A statue that moves when not observed.',
+        'Second line.',
+        'Third line.',
+      ].join('\n'),
       images: [],
       references: ['scp-172'],
       hubs: [],
@@ -155,6 +159,29 @@ describe('SCP get tools', () => {
       format: 'markdown',
     });
     expect(md.content).toMatch(/statue/i);
+
+    const ranged = await scpGetContentToolCall(repo, {
+      link: 'scp-173',
+      format: 'wikitext',
+      start_line: 2,
+      max_lines: 1,
+    });
+    expect(ranged.content).toBe('Second line.');
+    expect(ranged.range).toEqual({
+      start_line: 2,
+      end_line: 2,
+      total_lines: 3,
+      has_more: true,
+    });
+    expect(ranged.content_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+
+    await expect(
+      scpGetContentToolCall(repo, {
+        link: 'scp-173',
+        format: 'wikitext',
+        start_line: 4,
+      }),
+    ).rejects.toThrow('start_line exceeds content length: 4');
   });
 
   it('scp_get_related returns references as related pages', async () => {

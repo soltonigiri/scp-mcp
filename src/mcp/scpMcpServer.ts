@@ -144,6 +144,19 @@ export function createScpMcpServer(repo: ScpRepository) {
           .boolean()
           .optional()
           .describe('Whether to include footnotes'),
+        start_line: z
+          .number()
+          .int()
+          .min(1)
+          .optional()
+          .describe('First line to return (1-based, default 1)'),
+        max_lines: z
+          .number()
+          .int()
+          .min(1)
+          .max(500)
+          .optional()
+          .describe('Maximum lines to return (default 200, max 500)'),
       },
     },
     (args) => scpGetContentToolCall(repo, args),
