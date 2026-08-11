@@ -33,4 +33,45 @@ describe('ScpRepository', () => {
     const res = await repo.search({ query: 'statue', limit: 10 });
     expect(res.results[0]?.link).toBe('scp-173');
   });
+
+  it('indexes pages with the same content key when page ids differ', async () => {
+    const files: Record<string, Record<string, unknown>> = {
+      'content_joke.json': {
+        'SCP-001': {
+          link: 'scp-001-j',
+          title: 'SCP-001-J',
+          url: 'https://scp-wiki.wikidot.com/scp-001-j',
+          page_id: '1001',
+          raw_source: 'First proposal',
+        },
+      },
+      'content_scp-001.json': {
+        'SCP-001': {
+          link: 'scp-001-gate-guardian',
+          title: 'SCP-001 Gate Guardian',
+          url: 'https://scp-wiki.wikidot.com/dr-clef-s-proposal',
+          page_id: '1002',
+          raw_source: 'Second proposal',
+        },
+      },
+    };
+    const repo = new ScpRepository(
+      {
+        getIndex: async () => ({}),
+        getContentIndexFor: async () => ({
+          joke: 'content_joke.json',
+          proposals: 'content_scp-001.json',
+        }),
+        getContentFileFor: async (_collection, fileName) =>
+          files[fileName] ?? {},
+      },
+      { collections: ['items'] },
+    );
+
+    const res = await repo.search({ query: 'proposal', limit: 10 });
+    expect(res.results.map((result) => result.link).sort()).toEqual([
+      'scp-001-gate-guardian',
+      'scp-001-j',
+    ]);
+  });
 });

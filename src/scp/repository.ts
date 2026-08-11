@@ -406,7 +406,7 @@ function buildSearchDocument(
       : (rawSource ?? '');
 
   return {
-    id: `${params.collection}:${params.key}`,
+    id: `${params.collection}:${base.pageId}`,
     link: base.link,
     title: base.title,
     url: base.url,
