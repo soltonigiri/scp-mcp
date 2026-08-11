@@ -64,4 +64,38 @@ describe('ScpDataApiClient', () => {
     expect(h['If-None-Match']).toBe(etag);
     expect(h['If-Modified-Since']).toBe(lastModified);
   });
+
+  it('uses the basename from an absolute content index path', async () => {
+    const calls: string[] = [];
+    const client = new ScpDataApiClient({
+      fetch: async (input) => {
+        calls.push(input.toString());
+        return new Response('{}', { status: 200 });
+      },
+    });
+
+    await client.getContentFileFor(
+      'tales',
+      '/home/runner/work/scp-api/data/processed/tales/content_2026.json',
+    );
+
+    expect(calls).toEqual([
+      'https://scp-data.tedivm.com/data/scp/tales/content_2026.json',
+    ]);
+  });
+
+  it('maps GOI content to its single published content file', async () => {
+    let fetchCount = 0;
+    const client = new ScpDataApiClient({
+      fetch: async () => {
+        fetchCount += 1;
+        return new Response('{}', { status: 200 });
+      },
+    });
+
+    await expect(client.getContentIndexFor('goi')).resolves.toEqual({
+      goi: 'content_goi.json',
+    });
+    expect(fetchCount).toBe(0);
+  });
 });

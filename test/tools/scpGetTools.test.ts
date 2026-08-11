@@ -38,7 +38,7 @@ function createItemsRepo() {
       references: ['scp-172'],
       hubs: [],
       images: [],
-      history: [{ author: 'Author B' }],
+      history: [{ author: 'Author B' }, { author: 'Editor C' }],
       series: 'series-1',
       scp_number: 173,
     },
@@ -76,7 +76,11 @@ function createItemsRepo() {
       creator: 'Author B',
       raw_content:
         '<html><body><div id="page-content"><p>A statue that moves when not observed.</p></div></body></html>',
-      raw_source: 'A statue that moves when not observed.',
+      raw_source: [
+        'A statue that moves when not observed.',
+        'Second line.',
+        'Third line.',
+      ].join('\n'),
       images: [],
       references: ['scp-172'],
       hubs: [],
@@ -104,7 +108,12 @@ function createItemsRepo() {
         return contentSeries1 as unknown as Record<string, unknown>;
       },
     },
-    { collections: ['items'] },
+    {
+      collections: ['items'],
+      authorSource: {
+        getAuthorsByPageId: async () => ['Moto42'],
+      },
+    },
   );
 }
 
@@ -137,6 +146,7 @@ describe('SCP get tools', () => {
     });
     expect(text.content).toMatch(/statue/i);
     expect(text.content_is_untrusted).toBe(true);
+    expect(text).not.toHaveProperty('media_warnings');
 
     const wt = await scpGetContentToolCall(repo, {
       link: 'scp-173',
@@ -149,6 +159,29 @@ describe('SCP get tools', () => {
       format: 'markdown',
     });
     expect(md.content).toMatch(/statue/i);
+
+    const ranged = await scpGetContentToolCall(repo, {
+      link: 'scp-173',
+      format: 'wikitext',
+      start_line: 2,
+      max_lines: 1,
+    });
+    expect(ranged.content).toBe('Second line.');
+    expect(ranged.range).toEqual({
+      start_line: 2,
+      end_line: 2,
+      total_lines: 3,
+      has_more: true,
+    });
+    expect(ranged.content_hash).toMatch(/^sha256:[a-f0-9]{64}$/);
+
+    await expect(
+      scpGetContentToolCall(repo, {
+        link: 'scp-173',
+        format: 'wikitext',
+        start_line: 4,
+      }),
+    ).rejects.toThrow('start_line exceeds content length: 4');
   });
 
   it('scp_get_related returns references as related pages', async () => {
@@ -162,7 +195,7 @@ describe('SCP get tools', () => {
   it('scp_get_attribution generates an attribution template', async () => {
     const repo = createItemsRepo();
     const res = await scpGetAttributionToolCall(repo, { link: 'scp-173' });
-    expect(res.authors).toContain('Author B');
+    expect(res.authors).toEqual(['Moto42']);
     expect(res.attribution_text).toMatch(/SCP-173/);
     expect(res.attribution_text).toMatch(/CC BY-SA 3.0/);
   });

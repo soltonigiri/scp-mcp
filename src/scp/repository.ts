@@ -1,5 +1,3 @@
-import { load } from 'cheerio';
-
 import {
   formatScpContent,
   type ContentFormat,
@@ -26,8 +24,13 @@ export type ScpDataSource = {
   ) => Promise<Record<string, unknown>>;
 };
 
+export type ScpAuthorSource = {
+  getAuthorsByPageId: (pageId: string) => Promise<string[]>;
+};
+
 export class ScpRepository {
   private readonly source: ScpDataSource;
+  private readonly authorSource: ScpAuthorSource | undefined;
   private readonly collections: ScpCollection[];
   private readonly searchEngine = new ScpSearchEngine();
   private searchIndexPromise: Promise<void> | undefined;
@@ -39,9 +42,13 @@ export class ScpRepository {
 
   constructor(
     source: ScpDataSource,
-    options: { collections?: ScpCollection[] } = {},
+    options: {
+      collections?: ScpCollection[];
+      authorSource?: ScpAuthorSource;
+    } = {},
   ) {
     this.source = source;
+    this.authorSource = options.authorSource;
     this.collections = options.collections ?? ['items', 'tales', 'hubs', 'goi'];
   }
 
@@ -145,7 +152,7 @@ export class ScpRepository {
     page: ScpPageMeta;
   }> {
     const meta = await this.getPage({ link: params.link });
-    const authors = extractAuthors(meta.creator, meta.history);
+    const authors = await this.getAuthors(meta);
     const attribution_text = buildAttributionText({
       url: meta.url,
       title: meta.title,
@@ -154,44 +161,30 @@ export class ScpRepository {
     return { authors, attribution_text, page: meta };
   }
 
+  private async getAuthors(meta: ScpPageMeta): Promise<string[]> {
+    if (!this.authorSource) return extractAuthors(meta.creator);
+    try {
+      return normalizeAuthors(
+        await this.authorSource.getAuthorsByPageId(meta.page_id),
+      );
+    } catch {
+      return [];
+    }
+  }
+
   private async ensureSearchIndex(): Promise<void> {
     if (this.searchIndexPromise) return this.searchIndexPromise;
 
     this.searchIndexPromise = (async () => {
       for (const collection of this.collections) {
-        if (collection === 'hubs') {
-          const index = await this.source.getIndex('hubs');
-          for (const [key, rawEntry] of Object.entries(index)) {
-            const doc = buildSearchDocument({
-              collection,
-              key,
-              entry: rawEntry as Record<string, unknown>,
-              preferHtmlText: true,
-            });
-            if (!doc) continue;
-            this.searchEngine.add(doc);
-          }
-          continue;
-        }
-
-        const contentIndex = await this.source.getContentIndexFor(collection);
-        const files = Array.from(new Set(Object.values(contentIndex)));
-
-        for (const fileName of files) {
-          const content = await this.source.getContentFileFor(
+        const index = await this.source.getIndex(collection);
+        for (const rawEntry of Object.values(index)) {
+          const doc = buildSearchDocument({
             collection,
-            fileName,
-          );
-          for (const [key, rawEntry] of Object.entries(content)) {
-            const doc = buildSearchDocument({
-              collection,
-              key,
-              entry: rawEntry as Record<string, unknown>,
-              preferHtmlText: false,
-            });
-            if (!doc) continue;
-            this.searchEngine.add(doc);
-          }
+            entry: rawEntry as Record<string, unknown>,
+          });
+          if (!doc) continue;
+          this.searchEngine.add(doc);
         }
       }
     })();
@@ -220,7 +213,7 @@ export class ScpRepository {
             tags: arrayOfStrings(base.entry.tags),
             series: stringOrUndefined(base.entry.series),
             created_at: stringOrUndefined(base.entry.created_at),
-            creator: stringOrUndefined(base.entry.creator),
+            creator: extractCreator(base.entry),
             history: Array.isArray(base.entry.history)
               ? (base.entry.history as unknown[])
               : undefined,
@@ -357,12 +350,6 @@ export type ScpPageMeta = {
   scp_number?: number;
 };
 
-function extractTextFromRawContent(rawContent: string): string {
-  const $ = load(rawContent);
-  const el = $('#page-content');
-  return (el.length > 0 ? el.text() : $.text()).trim();
-}
-
 type BaseFields = {
   link: string;
   title: string;
@@ -373,9 +360,7 @@ type BaseFields = {
 
 type BuildSearchDocParams = {
   collection: ScpCollection;
-  key: string;
   entry: Record<string, unknown>;
-  preferHtmlText: boolean;
 };
 
 function buildBaseFields(
@@ -395,27 +380,24 @@ function buildSearchDocument(
   const base = buildBaseFields(params.entry);
   if (!base) return undefined;
 
-  const rawContent = stringOrUndefined(base.entry.raw_content);
-  const rawSource = stringOrUndefined(base.entry.raw_source);
-  const text = params.preferHtmlText
-    ? rawContent
-      ? extractTextFromRawContent(rawContent)
-      : ''
-    : rawContent
-      ? extractTextFromRawContent(rawContent)
-      : (rawSource ?? '');
+  const tags = arrayOfStrings(base.entry.tags);
+  const series = stringOrUndefined(base.entry.series);
+  const creator = extractCreator(base.entry);
+  const text = [base.link, ...tags, series, creator]
+    .filter((value): value is string => Boolean(value))
+    .join(' ');
 
   return {
-    id: `${params.collection}:${params.key}`,
+    id: `${params.collection}:${base.pageId}`,
     link: base.link,
     title: base.title,
     url: base.url,
     page_id: base.pageId,
     rating: numberOrUndefined(base.entry.rating) ?? 0,
-    tags: arrayOfStrings(base.entry.tags),
-    series: stringOrUndefined(base.entry.series),
+    tags,
+    series,
     created_at: stringOrEmpty(base.entry.created_at),
-    creator: stringOrUndefined(base.entry.creator),
+    creator,
     text,
   };
 }
@@ -477,20 +459,22 @@ function pushToMapArray<K, V>(map: Map<K, V[]>, key: K, value: V) {
   existing.push(value);
 }
 
-function extractAuthors(
-  creator: string | undefined,
-  history: unknown[] | undefined,
-): string[] {
-  const authors: string[] = [];
-  if (creator) authors.push(creator);
-  if (history) {
-    for (const e of history) {
-      if (!e || typeof e !== 'object') continue;
-      const author = (e as Record<string, unknown>).author;
-      if (typeof author === 'string') authors.push(author);
-    }
+function extractCreator(entry: Record<string, unknown>): string | undefined {
+  for (const value of [entry.creator, entry.created_by]) {
+    if (typeof value !== 'string') continue;
+    const creator = value.trim();
+    if (creator) return creator;
   }
+  return undefined;
+}
+
+function extractAuthors(creator: string | undefined): string[] {
+  const author = creator?.trim();
+  return author ? [author] : [];
+}
+
+function normalizeAuthors(authors: string[]): string[] {
   return Array.from(
-    new Set(authors.map((a) => a.trim()).filter((a) => a.length > 0)),
+    new Set(authors.map((author) => author.trim()).filter(Boolean)),
   );
 }

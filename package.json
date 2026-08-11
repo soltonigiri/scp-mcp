@@ -4,11 +4,15 @@
   "description": "SCP Data API wrapper as a Model Context Protocol (MCP) server",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "scp-mcp": "dist/cli/stdio.js"
+  },
   "files": [
     "dist",
     "README.md",
     "LICENSE",
-    "CHANGELOG.md"
+    "CHANGELOG.md",
+    "server.json"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -17,11 +21,26 @@
     "format:check": "prettier -c .",
     "mcp:stdio": "npm run build --silent && node dist/cli/stdio.js",
     "mcp:http": "npm run build --silent && node dist/cli/http.js",
+    "prepack": "npm run build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
-  "keywords": [],
-  "author": "",
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "scp",
+    "scp-wiki",
+    "ai"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/soltonigiri/scp-mcp.git"
+  },
+  "homepage": "https://github.com/soltonigiri/scp-mcp#readme",
+  "bugs": {
+    "url": "https://github.com/soltonigiri/scp-mcp/issues"
+  },
+  "mcpName": "io.github.soltonigiri/scp-mcp",
   "license": "MIT",
   "engines": {
     "node": ">=20.19.0"

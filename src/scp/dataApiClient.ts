@@ -82,6 +82,9 @@ export class ScpDataApiClient {
   async getContentIndexFor(
     collection: string,
   ): Promise<Record<string, string>> {
+    if (collection === 'goi') {
+      return { goi: 'content_goi.json' };
+    }
     return this.getJsonByUrl(buildApiUrl(`${collection}/content_index.json`));
   }
 
@@ -89,11 +92,8 @@ export class ScpDataApiClient {
     collection: string,
     fileName: string,
   ): Promise<Record<string, unknown>> {
-    if (!fileName.endsWith('.json')) {
-      throw new Error('content file name must end with .json');
-    }
-
-    return this.getJsonByUrl(buildApiUrl(`${collection}/${fileName}`));
+    const basename = contentFileBasename(fileName);
+    return this.getJsonByUrl(buildApiUrl(`${collection}/${basename}`));
   }
 
   private assertAllowlisted(url: URL) {
@@ -182,4 +182,12 @@ export class ScpDataApiClient {
       if (oldest) this.cacheBytes -= oldest.bytes;
     }
   }
+}
+
+function contentFileBasename(fileName: string): string {
+  const basename = fileName.replaceAll('\\', '/').split('/').at(-1) ?? '';
+  if (!/^[A-Za-z0-9][A-Za-z0-9._-]*\.json$/.test(basename)) {
+    throw new Error(`invalid content file name: ${fileName}`);
+  }
+  return basename;
 }

@@ -7,31 +7,33 @@ describe('scp_search tool', () => {
   it('returns results with license and attribution', async () => {
     const repo = new ScpRepository(
       {
-        getIndex: async () => ({}),
-        getContentIndexFor: async () => ({
-          'series-1': 'content_series-1.json',
-        }),
-        getContentFileFor: async () => ({
+        getIndex: async () => ({
           'SCP-173': {
             link: 'scp-173',
             title: 'SCP-173',
             url: 'https://scp-wiki.wikidot.com/scp-173',
             page_id: '1956234',
             rating: 100,
-            tags: ['euclid'],
+            tags: ['euclid', 'sculpture'],
             series: 'series-1',
             created_at: '2008-07-25T20:49:00',
             creator: 'Test',
-            raw_content:
-              '<html><body><div id=\"page-content\"><p>A statue that moves when not observed.</p></div></body></html>',
-            raw_source: 'A statue that moves when not observed.',
           },
         }),
+        getContentIndexFor: async () => {
+          throw new Error('content index must not be loaded for search');
+        },
+        getContentFileFor: async () => {
+          throw new Error('content file must not be loaded for search');
+        },
       },
       { collections: ['items'] },
     );
 
-    const res = await scpSearchToolCall(repo, { query: 'statue', limit: 1 });
+    const res = await scpSearchToolCall(repo, {
+      query: 'sculpture',
+      limit: 1,
+    });
     expect(res.results).toHaveLength(1);
     expect(res.license.name).toMatch(/CC BY-SA 3.0/);
     expect(res.attribution.license.name).toMatch(/CC BY-SA 3.0/);
