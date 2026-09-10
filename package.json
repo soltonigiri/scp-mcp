@@ -61,6 +61,6 @@
     "eslint": "^9.18.0",
     "prettier": "^3.5.2",
     "typescript": "^5.8.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   }
 }
