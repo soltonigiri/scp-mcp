@@ -184,83 +184,35 @@ function compareSearch(
 }
 
 function makeSnippet(text: string, query: string, fallbackIdx: number): string {
-  const normalized = normalizeSnippetText(text);
-  if (normalized.length === 0) return '';
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) return '';
 
-  const maxLen = 200;
-  if (!query) {
-    return buildLeadingSnippet(normalized, maxLen);
-  }
-
-  const firstIdx = findFirstMatchIndex(normalized, query);
-  if (firstIdx === -1) {
-    return buildFallbackSnippet(normalized, fallbackIdx, maxLen);
-  }
-
-  return buildContextSnippet(normalized, firstIdx);
-}
-
-function normalizeSnippetText(text: string): string {
-  return text.replace(/\s+/g, ' ').trim();
-}
-
-function buildLeadingSnippet(normalized: string, maxLen: number): string {
-  const slice = normalized.slice(0, maxLen);
-  return normalized.length > slice.length ? `${slice}…` : slice;
-}
-
-function findFirstMatchIndex(normalized: string, query: string): number {
-  const terms = query
-    .toLowerCase()
-    .split(/\s+/)
-    .map((t) => t.trim())
-    .filter((t) => t.length > 0);
-  if (terms.length === 0) return -1;
-
-  const lower = normalized.toLowerCase();
-  let firstIdx = -1;
-  for (const term of terms) {
-    const idx = lower.indexOf(term);
-    if (idx !== -1 && (firstIdx === -1 || idx < firstIdx)) {
-      firstIdx = idx;
+  let start = 0;
+  let end = 200;
+  if (query) {
+    const lower = normalized.toLowerCase();
+    const matches = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map((term) => lower.indexOf(term))
+      .filter((index) => index >= 0);
+    if (matches.length > 0) {
+      const firstMatch = matches.reduce(
+        (first, index) => Math.min(first, index),
+        Infinity,
+      );
+      start = Math.max(0, firstMatch - 80);
+      end = firstMatch + 120;
+    } else {
+      start = Math.min(fallbackIdx * 40, Math.max(0, normalized.length - 200));
+      end = start + 200;
     }
   }
-  return firstIdx;
-}
 
-function buildFallbackSnippet(
-  normalized: string,
-  fallbackIdx: number,
-  maxLen: number,
-): string {
-  const start = Math.min(
-    fallbackIdx * 40,
-    Math.max(0, normalized.length - maxLen),
-  );
-  return wrapSnippet(normalized.slice(start, start + maxLen), {
-    prefix: start > 0,
-    suffix: start + maxLen < normalized.length,
-  });
-}
-
-function buildContextSnippet(normalized: string, firstIdx: number): string {
-  const contextBefore = 80;
-  const contextAfter = 120;
-  const start = Math.max(0, firstIdx - contextBefore);
-  const end = Math.min(normalized.length, firstIdx + contextAfter);
-  return wrapSnippet(normalized.slice(start, end), {
-    prefix: start > 0,
-    suffix: end < normalized.length,
-  });
-}
-
-function wrapSnippet(
-  slice: string,
-  opts: { prefix: boolean; suffix: boolean },
-): string {
-  const prefix = opts.prefix ? '…' : '';
-  const suffix = opts.suffix ? '…' : '';
-  return `${prefix}${slice}${suffix}`;
+  return `${start > 0 ? '…' : ''}${normalized.slice(start, end)}${
+    end < normalized.length ? '…' : ''
+  }`;
 }
 
 function parseDateOrUndefined(value: string | undefined): Date | undefined {

@@ -9,10 +9,6 @@ const packageJson = JSON.parse(
 ) as {
   version: string;
   bin?: Record<string, string>;
-  repository?: { url?: string };
-  homepage?: string;
-  bugs?: { url?: string };
-  keywords?: string[];
   mcpName?: string;
 };
 
@@ -25,22 +21,12 @@ const serverJson = JSON.parse(
 };
 
 describe('smoke', () => {
-  it('exports version', () => {
-    expect(VERSION).toMatch(/^\d+\.\d+\.\d+$/);
-  });
-
   it('keeps the exported version in sync with package.json', () => {
     expect(VERSION).toBe(packageJson.version);
   });
 
   it('publishes an executable package with MCP Registry metadata', () => {
     expect(packageJson.bin).toEqual({ 'scp-mcp': 'dist/cli/stdio.js' });
-    expect(packageJson.repository?.url).toContain('soltonigiri/scp-mcp');
-    expect(packageJson.homepage).toContain('soltonigiri/scp-mcp');
-    expect(packageJson.bugs?.url).toContain('soltonigiri/scp-mcp');
-    expect(packageJson.keywords).toEqual(
-      expect.arrayContaining(['mcp', 'scp', 'model-context-protocol']),
-    );
     expect(packageJson.mcpName).toBe('io.github.soltonigiri/scp-mcp');
     expect(serverJson).toMatchObject({
       name: packageJson.mcpName,

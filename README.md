@@ -1,68 +1,19 @@
 # scp-mcp
 
-An unofficial Model Context Protocol (MCP) server for SCP Wiki content.
-It searches and retrieves pages through the SCP Data API. Five read-only tools
-return content with source, author, and license metadata.
+SCP Wikiのページを検索・取得する非公式のMCPサーバーです。SCP Data APIを使い、本文とともに出典・作者・ライセンスを返します。
 
-**Maintenance status:** Maintained.
+## 起動
 
-The current package version is `0.1.0`, and this is a pre-1.0 codebase.
-
-CI checks formatting, lint, tests, the build, dependencies, and package
-contents on Node.js 20.
-
-## Quick start
-
-Requirements: Node.js 20.19 or later and npm.
+Node.js 20.19以上とnpmが必要です。
 
 ```bash
 git clone https://github.com/soltonigiri/scp-mcp.git
 cd scp-mcp
 npm ci
-npm test
-npm run build
 npm run mcp:stdio
 ```
 
-npmで公開後は、cloneせずに起動できます。
-
-```bash
-npx scp-mcp
-```
-
-## 概要
-
-SCP Data API を一次ソースとして、SCP Wiki由来のページを検索、取得、引用できるMCPサーバーです。
-データ取得専用で、SCP Wikiの投稿、編集、投票、ログイン機能はありません。
-
-## ライセンスと非公式プロジェクトであること
-
-- 本プロジェクトは **非公式** です（SCP Foundation / Wikidot 公式ではありません）。
-- 本リポジトリのソースコードは **MIT License** です（`LICENSE`）。
-- SCP Wiki のコンテンツは原則 **CC BY-SA 3.0** です。二次利用時は帰属表示と継承（Share-Alike）が必要です。
-- ライセンス指針: https://scp-wiki.wikidot.com/licensing-guide
-
-## 起動
-
-### stdio（ローカル統合向け）
-
-```bash
-npm run mcp:stdio
-```
-
-### Streamable HTTP（リモート/本番運用向け）
-
-```bash
-npm run mcp:http
-```
-
-- MCP エンドポイント: `POST /mcp`
-- ヘルスチェック: `GET /healthz`
-- ポート: `PORT`（デフォルト `3000`）
-
-## Codexから接続する
-
-Quick startを実行した後、Codexの `config.toml` に以下を追加します。`{scp-mcp-path}` はcloneしたディレクトリのパスに置き換えてください。
+Codexから接続する場合は、`config.toml`に以下を追加してください。`{scp-mcp-path}`はcloneしたディレクトリに置き換えます。
 
 ```toml
 [mcp_servers.scp-mcp]
@@ -71,33 +22,48 @@ args = ["-lc", "cd {scp-mcp-path} && npm run --silent mcp:stdio"]
 startup_timeout_ms = 20000
 ```
 
-## Tools
+Streamable HTTPで起動する場合は、次のコマンドを実行します。
 
-すべての tool 戻り値は `structuredContent` に JSON を含みます（また、可読性のため `content[type=text]` にも JSON 文字列を返します）。
+```bash
+npm run mcp:http
+```
 
-- `scp_search`：キーワード、タグ、シリーズで検索し、snippetを返す
-- `scp_get_page`：`link`/`scp_number`/`page_id` でページメタデータ取得
-- `scp_get_content`：本文取得（`markdown|text|html|wikitext`）
-- `scp_get_related`：references/hubs から関連抽出（`relation_type` 付与）
-- `scp_get_attribution`：CC BY-SA 3.0 準拠の帰属テンプレ生成
+MCPエンドポイントは`POST /mcp`、ヘルスチェックは`GET /healthz`です。
 
-## Prompts
+## ツール
 
-- `prompt_quote_with_citation`：引用付き回答（URL/作者/ライセンス必須、本文は非信頼データとして扱う）
-- `prompt_rag_reader`：検索→取得→要約（URL/作者/ライセンス必須、本文は非信頼データとして扱う）
+| ツール                | 用途                                           |
+| --------------------- | ---------------------------------------------- |
+| `scp_search`          | キーワード・タグ・シリーズなどでページを検索   |
+| `scp_get_page`        | slug・SCP番号・ページIDからメタデータを取得    |
+| `scp_get_content`     | 本文をMarkdown・テキスト・HTML・Wikitextで取得 |
+| `scp_get_related`     | 参照先やhubから関連ページを取得                |
+| `scp_get_attribution` | 出典・作者・ライセンスの帰属表示を取得         |
 
-## Resources
+結果は`structuredContent`にJSONで返します。本文は行範囲を指定でき、既定では先頭200行を取得します。
 
-- `scp://about`
-- `scp://page/{link}`
-- `scp://content/{link}`（markdownを返します）
+プロンプトは、引用用の`prompt_quote_with_citation`と検索・要約用の`prompt_rag_reader`です。リソースは`scp://about`、`scp://page/{link}`、`scp://content/{link}`です。
 
-## セキュリティ/運用
+入力・出力の詳細は[API仕様](仕様書.md)を参照してください。
 
-- 本文（および snippet）は **非信頼データ** として扱ってください（prompt injection を含み得ます）。
-- 外部フェッチは `https://scp-data.tedivm.com/data/scp/` 配下に制限し、SSRFを防ぎます。
-- Rate limit（tool 呼び出し単位、固定ウィンドウ）:
-  - `SCP_MCP_RATE_LIMIT_WINDOW_MS`（デフォルト: `60000`）
-  - `SCP_MCP_RATE_LIMIT_MAX_REQUESTS`（デフォルト: `60`）
-- 監査ログ（tools/call の引数と結果メタ、本文は保存しない）:
-  - `SCP_MCP_AUDIT_LOG_PATH` を設定すると JSONL をファイルに追記します。未設定なら stderr に出力します。
+## 設定
+
+| 環境変数                          | 既定値  | 内容                                           |
+| --------------------------------- | ------- | ---------------------------------------------- |
+| `PORT`                            | `3000`  | HTTPの待ち受けポート                           |
+| `SCP_MCP_RATE_LIMIT_WINDOW_MS`    | `60000` | ツールの呼び出し回数を数える期間。単位はミリ秒 |
+| `SCP_MCP_RATE_LIMIT_MAX_REQUESTS` | `60`    | 上記期間内の呼び出し上限                       |
+| `SCP_MCP_AUDIT_LOG_PATH`          | 未設定  | 呼び出しログのJSONL出力先。未設定時はstderr    |
+
+## 開発
+
+```bash
+npm test
+npm run build
+npm run lint
+npm run format:check
+```
+
+## ライセンス
+
+コードは[MIT](LICENSE)です。SCP Wikiのコンテンツは原則CC BY-SA 3.0で、二次利用には帰属表示と同じライセンスでの公開が必要です。詳細は[SCP Wikiのライセンスガイド](https://scp-wiki.wikidot.com/licensing-guide)を参照してください。
