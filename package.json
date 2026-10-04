@@ -10,6 +10,7 @@
   "files": [
     "dist",
     "README.md",
+    "仕様書.md",
     "LICENSE",
     "CHANGELOG.md",
     "server.json"

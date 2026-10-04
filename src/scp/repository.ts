@@ -117,30 +117,21 @@ export class ScpRepository {
     }> = [];
     const seen = new Set<string>();
 
-    for (const link of meta.references ?? []) {
-      const r = this.resolveLinkToMeta(link);
-      if (!r) continue;
-      if (seen.has(r.link)) continue;
-      seen.add(r.link);
-      related.push({
-        link: r.link,
-        title: r.title,
-        url: r.url,
-        relation_type: 'reference',
-      });
-    }
-
-    for (const link of meta.hubs ?? []) {
-      const r = this.resolveLinkToMeta(link);
-      if (!r) continue;
-      if (seen.has(r.link)) continue;
-      seen.add(r.link);
-      related.push({
-        link: r.link,
-        title: r.title,
-        url: r.url,
-        relation_type: 'hub',
-      });
+    for (const [relation_type, links] of [
+      ['reference', meta.references],
+      ['hub', meta.hubs],
+    ] as const) {
+      for (const link of links ?? []) {
+        const page = this.resolveLinkToMeta(link);
+        if (!page || seen.has(page.link)) continue;
+        seen.add(page.link);
+        related.push({
+          link: page.link,
+          title: page.title,
+          url: page.url,
+          relation_type,
+        });
+      }
     }
 
     return related;

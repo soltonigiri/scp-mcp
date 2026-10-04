@@ -465,23 +465,24 @@ async function wrapStructuredCall<T extends Record<string, unknown>>(
       sessionId,
       args,
       auditLogger,
-      buildRateLimitMessage(limit.resetAtMs),
+      `Rate limit exceeded. Try again after ${new Date(limit.resetAtMs).toISOString()}.`,
     );
   }
 
   try {
     const value = await fn();
-    logAuditSuccess(tool, sessionId, args, auditLogger, value);
+    auditLogger.log({
+      ts: new Date().toISOString(),
+      session_id: sessionId,
+      tool,
+      args: truncateForLog(args),
+      result_meta: RESULT_SUMMARIZERS[tool]?.(value) ?? {},
+    });
     return buildStructuredSuccess(tool, value);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return buildStructuredError(tool, sessionId, args, auditLogger, message);
   }
-}
-
-function buildRateLimitMessage(resetAtMs: number): string {
-  const resetAtIso = new Date(resetAtMs).toISOString();
-  return `Rate limit exceeded. Try again after ${resetAtIso}.`;
 }
 
 function buildStructuredSuccess(
@@ -527,37 +528,6 @@ function buildStructuredError(
   auditLogger: AuditLogger,
   message: string,
 ): CallToolResult {
-  logAuditError(tool, sessionId, args, auditLogger, message);
-  return {
-    isError: true,
-    content: [{ type: 'text' as const, text: message }],
-    structuredContent: { error: message },
-  };
-}
-
-function logAuditSuccess(
-  tool: string,
-  sessionId: string | undefined,
-  args: unknown,
-  auditLogger: AuditLogger,
-  value: Record<string, unknown>,
-) {
-  auditLogger.log({
-    ts: new Date().toISOString(),
-    session_id: sessionId,
-    tool,
-    args: truncateForLog(args),
-    result_meta: summarizeResult(tool, value),
-  });
-}
-
-function logAuditError(
-  tool: string,
-  sessionId: string | undefined,
-  args: unknown,
-  auditLogger: AuditLogger,
-  message: string,
-) {
   auditLogger.log({
     ts: new Date().toISOString(),
     session_id: sessionId,
@@ -565,6 +535,11 @@ function logAuditError(
     args: truncateForLog(args),
     error: message,
   });
+  return {
+    isError: true,
+    content: [{ type: 'text' as const, text: message }],
+    structuredContent: { error: message },
+  };
 }
 
 const RESULT_SUMMARIZERS: Record<
@@ -593,13 +568,6 @@ const RESULT_SUMMARIZERS: Record<
     authors: Array.isArray(value.authors) ? value.authors.length : undefined,
   }),
 };
-
-function summarizeResult(
-  tool: string,
-  value: Record<string, unknown>,
-): Record<string, unknown> {
-  return RESULT_SUMMARIZERS[tool]?.(value) ?? {};
-}
 
 function numberFromEnv(name: string, fallback: number): number {
   const v = process.env[name];
